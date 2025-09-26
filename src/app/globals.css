@@ -1,26 +1,116 @@
 @import "tailwindcss";
 
+/* GhostPalace Unified Theme */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --foreground: #1f2937;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --secondary: #3b82f6;
+  --accent: #60a5fa;
+  --muted: #f9fafb;
+  --border: #e5e7eb;
+  --card-bg: #ffffff;
+  --nav-bg: #ffffff;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+
+/* Consistent component styles */
+.ghost-nav {
+  background: var(--nav-bg);
+  border-bottom: 1px solid #dbeafe;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.ghost-card {
+  background: var(--card-bg);
+  border: 1px solid #dbeafe;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.ghost-card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.ghost-button-primary {
+  background: var(--primary);
+  color: white;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.ghost-button-primary:hover {
+  background: var(--primary-hover);
+}
+
+.ghost-button-secondary {
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: transparent;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.ghost-button-secondary:hover {
+  background: #eff6ff;
+}
+
+.ghost-input {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: white;
+  color: var(--foreground);
+  transition: all 0.2s;
+}
+
+.ghost-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+/* Text utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* Consistent spacing */
+.ghost-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .ghost-container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ghost-container {
+    padding: 0 2rem;
+  }
 }
