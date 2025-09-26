@@ -1,10 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import ListingCard from "../../components/ListingCard";
-import SearchBar from "../../components/SearchBar";
-import FilterSidebar from "../../components/FilterSidebar";
+import { useState, useEffect } from "react";
+import { 
+  PageLayout, 
+  ListingCard, 
+  SearchBar, 
+  FilterSidebar, 
+  Button,
+  Badge,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent
+} from "../../components";
+import type { Listing, FilterState } from "../../components";
+import { ipfsService, IPFSListing } from "../../lib/ipfs";
 
 // Mock data for listings
 const mockListings = [
@@ -108,20 +118,67 @@ const mockListings = [
 
 export default function ListingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [priceRange, setPriceRange] = useState([0, 150000]);
-  const [condition, setCondition] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
+  const [filters, setFilters] = useState<FilterState>({
+    categories: [],
+    priceRange: [0, 100000],
+    conditions: [],
+    location: ""
+  });
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [ipfsListings, setIpfsListings] = useState<Listing[]>([]);
+  const [isLoadingIPFS, setIsLoadingIPFS] = useState(true);
+
+  // Load listings from IPFS on component mount
+  useEffect(() => {
+    loadIPFSListings();
+  }, []);
+
+  const loadIPFSListings = async () => {
+    setIsLoadingIPFS(true);
+    try {
+      const ipfsResults = await ipfsService.searchListings();
+      
+      // Convert IPFS listings to UI listing format
+      const convertedListings: Listing[] = ipfsResults.map((ipfsListing: IPFSListing) => ({
+        id: ipfsListing.id,
+        title: ipfsListing.title,
+        description: ipfsListing.description,
+        price: ipfsListing.price,
+        currency: ipfsListing.currency,
+        image: ipfsListing.images[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop',
+        seller: ipfsListing.seller,
+        sellerName: ipfsListing.sellerName,
+        sellerRating: 4.5, // Default rating
+        category: ipfsListing.category,
+        condition: ipfsListing.condition,
+        location: ipfsListing.location,
+        createdAt: ipfsListing.createdAt,
+        status: 'active' as const
+      }));
+      
+      setIpfsListings(convertedListings);
+      console.log(`Loaded ${convertedListings.length} listings from IPFS`);
+    } catch (error) {
+      console.error('Error loading IPFS listings:', error);
+    } finally {
+      setIsLoadingIPFS(false);
+    }
+  };
+
+  // Combine mock listings with IPFS listings
+  const allListings = [...mockListings, ...ipfsListings];
 
   // Filter listings based on search and filters
-  const filteredListings = mockListings.filter(listing => {
+  const filteredListings = allListings.filter(listing => {
     const matchesSearch = listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          listing.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || listing.category === selectedCategory;
-    const matchesPrice = listing.price >= priceRange[0] && listing.price <= priceRange[1];
-    const matchesCondition = condition === "All" || listing.condition === condition;
+    const matchesCategory = filters.categories.length === 0 || filters.categories.includes(listing.category);
+    const matchesPrice = listing.price >= filters.priceRange[0] && listing.price <= filters.priceRange[1];
+    const matchesCondition = filters.conditions.length === 0 || filters.conditions.includes(listing.condition);
+    const matchesLocation = !filters.location || listing.location.includes(filters.location);
     
-    return matchesSearch && matchesCategory && matchesPrice && matchesCondition;
+    return matchesSearch && matchesCategory && matchesPrice && matchesCondition && matchesLocation;
   });
 
   // Sort listings
@@ -139,103 +196,141 @@ export default function ListingsPage() {
     }
   });
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-blue-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold text-gray-900">
-                👻 GhostPalace
-              </Link>
-            </div>
-            <div className="flex space-x-4">
-              <Link
-                href="/"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Home
-              </Link>
-              <Link
-                href="/dashboard"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/onboarding"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Browse Listings
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            Discover unique items from sellers around the world
-          </p>
+  const handleSort = (sort: string) => {
+    setSortBy(sort);
+  };
+
+  const handleFilterChange = (filters: FilterState) => {
+    setFilters(filters);
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      categories: [],
+      priceRange: [0, 100000],
+      conditions: [],
+      location: ""
+    });
+  };
+
+  return (
+    <PageLayout>
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Browse Marketplace
+            </h1>
+            <p className="text-gray-600">
+              Discover amazing items from trusted sellers across India
+            </p>
+          </div>
+          
+          {/* Stats Cards */}
+          <div className="flex space-x-4 mt-4 sm:mt-0">
+            <Card padding="sm" className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{allListings.length}</div>
+              <div className="text-xs text-gray-500">Total Items</div>
+            </Card>
+            <Card padding="sm" className="text-center">
+              <div className="text-2xl font-bold text-green-600">{allListings.filter(l => l.status === 'active').length}</div>
+              <div className="text-xs text-gray-500">Active</div>
+            </Card>
+            <Card padding="sm" className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{ipfsListings.length}</div>
+              <div className="text-xs text-gray-500">From IPFS</div>
+            </Card>
+          </div>
         </div>
 
         {/* Search Bar */}
-        <div className="mb-6">
-          <SearchBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortBy={sortBy}
-            onSortChange={setSortBy}
-          />
-        </div>
+        <SearchBar
+          onSearch={handleSearch}
+          onSort={handleSort}
+        />
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Filter Sidebar */}
-          <div className="lg:w-64 flex-shrink-0">
-            <FilterSidebar
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-              priceRange={priceRange}
-              onPriceRangeChange={setPriceRange}
-              condition={condition}
-              onConditionChange={setCondition}
-            />
-          </div>
-
-          {/* Listings Grid */}
-          <div className="flex-1">
-            <div className="mb-4 flex justify-between items-center">
-              <p className="text-gray-600 dark:text-gray-300">
-                {sortedListings.length} items found
-              </p>
-            </div>
-            
-            {sortedListings.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🔍</div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  No listings found
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Try adjusting your search or filters to find what you're looking for.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {sortedListings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} />
-                ))}
-              </div>
+        {/* View Mode Toggle */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" size="sm">
+              {filteredListings.length} items found
+            </Badge>
+            {(filters.categories.length > 0 || filters.conditions.length > 0 || filters.location) && (
+              <Badge variant="info" size="sm">
+                Filters applied
+              </Badge>
             )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">View:</span>
+            <Button
+              variant={viewMode === 'grid' ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </Button>
           </div>
         </div>
       </div>
-    </div>
+
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Filters Sidebar */}
+        <div className="lg:w-1/4">
+          <FilterSidebar
+            onFilterChange={handleFilterChange}
+            onClearFilters={handleClearFilters}
+          />
+        </div>
+
+        {/* Listings Grid/List */}
+        <div className="lg:w-3/4">
+          {sortedListings.length > 0 ? (
+            <div className={viewMode === 'grid' 
+              ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" 
+              : "space-y-4"
+            }>
+              {sortedListings.map((listing) => (
+                <ListingCard 
+                  key={listing.id} 
+                  listing={listing}
+                  userType="buyer"
+                />
+              ))}
+            </div>
+          ) : (
+            <Card className="text-center py-12">
+              <CardContent>
+                <div className="text-6xl mb-4">🔍</div>
+                <CardTitle className="mb-2">No items found</CardTitle>
+                <p className="text-gray-600 mb-4">
+                  Try adjusting your search or filters to find what you're looking for.
+                </p>
+                <Button variant="outline" onClick={handleClearFilters}>
+                  Clear All Filters
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </PageLayout>
   );
 }
