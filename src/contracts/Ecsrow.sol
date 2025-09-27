@@ -30,10 +30,20 @@ contract Escrow {
     error Escrow__NotEnoughBalance();
     error Escrow__NotEnoughSecurityStake();
 
-    /* ENUMS */
+    /* TYPE DECLARATIONS */
 
     enum ListingStatus {
         CREATED, LOCKED, INDISPUTED, COMPLETED, REFUNDED
+    }
+
+    struct ListingOrder{
+        uint256 s_OrderId,
+        address payable s_seller,
+        uint256 immutable i_price,
+        address s_buyer,
+        ListingStatus listingStatus,
+        uint256 sellerResponseForDeadline,
+        uint256 buyerResponseForDeadline
     }
 
     /* EVENTS */
@@ -43,6 +53,7 @@ contract Escrow {
     event DisputeResolved(address indexed seller, address indexed buyer, calldata);
     event BuyerFlagged(address indexed seller, address indexed buyer, calldata);
     event SellerFlagged(address indexed seller, address indexed buyer, calldata);
+    event EscrowCreated(uint256 indexed orderId, address buyer);
 
 
     /* MODIFIERS */
@@ -61,49 +72,61 @@ contract Escrow {
     }
 
     /* STATE VARIABLES */
-    address public s_buyer;
-    address public s_seller; // probably stealth address
-    uint256 immutable i_price;
-    ListingStatus public listingStatus;
+    uint256 private s_nextDealId;
+    mapping(uint256 => ListingOrder) private s_orders;
     
-    struct ListingOrder{
-        address seller,
-        string service,
-        address buyer,
-        ListingStatus listingStatus,
-    }
 
     /* FUNCTIONS */
-    constructor(address _seller, address _buyer, uint256 _price){
-        s_seller = _seller;
-        s_buyer = _buyer;
-        i_price = _price;
-        listingStatus = ListingStatus.CREATED;
+    // constructor(/*address _seller*/ address _buyer, uint256 _price){
+    //     // s_seller = _seller;
+    //     s_buyer = _buyer;
+    //     i_price = _price;
+    //     listingStatus = ListingStatus.CREATED;
+    // }
+
+    function createEscrow(address _seller, address _buyer, address _price){
+        uint256 dealId = s_nextDealId;
+        s_deals[dealId] = ListingOrder{
+            s_dealId: dealId,
+            s_seller: _seller,
+            i_price: _price,
+            s_buyer: _buyer,
+            listingStatus: ListingStatus.CREATED,
+            sellerResponseForDeadline: 0,
+            buyerResponseForDeadline: 0
+        };
+        s_next
     }
 
     /**
-     * @dev after the deposition by buyer, the escrow locks instantly! Refund can be claimed only after seller stakes for security.
+     * @dev after the deposition by buyer, the escrow locks instantly!
      */
 
     function depositByBuyer() public payable onlyBuyer {
         if(msg.value < i_price){
             revert Escrow__NotEnoughBalance();
         }
-        address(this).balance() += msg.value;
+        address(this).balance += msg.value;
         listingStatus = ListingStatus.LOCKED;
     };
 
-    /**
-     * @dev after the deposition by buyer - Escrow is marked LOCKED for atleast 3 days or so, in that case after days refund will be done to the buyer. But for chat opening seller has to stake for security (10% of i_price i.e. orice of service).s
-     */
+    // /**
+    //  * @dev after the deposition by buyer - Escrow is marked LOCKED for atleast 3 days or so, in that case after days refund will be done to the buyer. But for chat opening seller has to stake for security (10% of i_price i.e. orice of service).s
+    //  */
 
-    function depositBySeller() public payable onlySeller {
-        if(msg.value < .1*i_price){
-            revert Escrow__NotEnoughSecurityStake();
-        }
-        address(this).balance() += msg.value;
-        listingStatus = ListingStatus.
-    };
+    // function depositBySeller() public payable onlySeller {
+    //     if(msg.value < .1*i_price){
+    //         revert Escrow__NotEnoughSecurityStake();
+    //     }
+    //     address(this).balance += msg.value;
+    //     listingStatus = ListingStatus.
+    // };
+
+    function confirmReceipt()public onlyBuyer{
+
+    }
+
+    function claimDefaultForSeller() external {}
 
     /**
      * @dev 3 days window period started for seller to respond
@@ -111,16 +134,26 @@ contract Escrow {
 
     function requestRefund() public onlyBuyer {
         //timelocks implementation
-        
-    };
+        block.timestamp + 72*3600;
+
+            
+    }
 
     /**
      * @dev after dispute has been resolved and the seller has been found guilty, buyer can claim it successfully
      */
 
     function claimRefund() public onlyBuyer {
-        
+        address payable receipent = msg.sender;
+        (bool success, ) = receipent.call{value: address(this).balance}(");
+    }
+
+    /**
+     * @dev this function sends buyer's locked funds to seller after 1 day of receiving the service
+     */
+
+    function claimFundsAfterDeadline() public onlySeller {
+
     };
-    function claimFundsAfterDeadline() public onlySeller {};
 
 }
