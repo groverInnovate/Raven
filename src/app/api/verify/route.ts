@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { SelfBackendVerifier, AllIds, DefaultConfigStore } from "@selfxyz/core";
+import { nullifierMappingService } from "../../../lib/nullifierMapping";
 
 // Reuse a single verifier instance
 const selfBackendVerifier = new SelfBackendVerifier(
@@ -53,13 +54,42 @@ export async function POST(req: Request) {
     const { isValid, isMinimumAgeValid, isOfacValid } = result.isValidDetails;
     
     if (isValid && isMinimumAgeValid && isOfacValid) {
-      // Verification successful - extract identity commitment
+      // Verification successful - extract identity commitment and nullifier
       const identityCommitment = (result.discloseOutput as any)?.identityCommitment || 
                                  (result.discloseOutput as any)?.identity_commitment ||
                                  `identity_${Date.now()}`;
       
+      const nullifier = (result.discloseOutput as any)?.nullifier;
+      
       console.log("Verification successful! Identity commitment:", identityCommitment);
+      console.log("Nullifier:", nullifier);
       console.log("Full disclose output:", JSON.stringify(result.discloseOutput, null, 2));
+      
+      // Store user verification data using nullifier mapping
+      if (nullifier) {
+        try {
+          console.log(`📝 Storing user verification data in nullifier mapping for: ${nullifier}`);
+          
+          // Prepare the data to store in the mapping
+          const userDataToStore = {
+            verificationData: result.discloseOutput,
+            userAddress: userContextData,
+            documentType: attestationId
+          };
+
+          // Update the nullifier mapping on Pinata
+          const mappingResult = await nullifierMappingService.updateMapping(nullifier, userDataToStore);
+
+          if (mappingResult.success) {
+            console.log(`✅ Nullifier mapping updated successfully: ${mappingResult.ipfsHash}`);
+          } else {
+            console.warn("⚠️ Failed to update nullifier mapping, but verification still successful");
+          }
+        } catch (error) {
+          console.warn("⚠️ Error updating nullifier mapping:", error);
+          // Don't fail the verification if storage fails
+        }
+      }
       
       // Return in the exact format expected by Self SDK (status 200 always)
       return NextResponse.json({
@@ -67,6 +97,7 @@ export async function POST(req: Request) {
         result: true,
         // Additional data for your app
         identityCommitment,
+        nullifier,
         credentialSubject: result.discloseOutput,
         verificationData: {
           verified: true,
