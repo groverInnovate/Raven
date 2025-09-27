@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button, Badge, Modal, ModalBody, ModalFooter } from '../ui';
 import { useWallet } from '../../contexts/WalletContext';
+import { getAvailableWallet } from '../../lib/walletUtils';
 import { cn } from '../../lib/theme';
 
 interface WalletConnectProps {
@@ -13,11 +14,14 @@ export default function WalletConnect({ className }: WalletConnectProps) {
   const { wallet, isConnecting, connectWallet, disconnectWallet, isClient } = useWallet();
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const walletInfo = getAvailableWallet();
 
 
 
   const handleConnect = async () => {
     try {
+      setError(null);
       await connectWallet();
     } catch (error: any) {
       console.error('Connection error:', error);
@@ -28,6 +32,10 @@ export default function WalletConnect({ className }: WalletConnectProps) {
         errorMessage = 'Connection rejected by user. Please try again and approve the connection.';
       } else if (error.code === -32002) {
         errorMessage = 'Connection request already pending. Please check MetaMask.';
+      } else if (error.code === -32603 && error.message?.includes('circuit breaker')) {
+        errorMessage = `${walletInfo.name} is temporarily busy. Please wait a moment and try again.`;
+      } else if (error.message?.includes('temporarily unavailable')) {
+        errorMessage = error.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -84,7 +92,7 @@ export default function WalletConnect({ className }: WalletConnectProps) {
         iconPosition="left"
         className={className}
       >
-        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+        {isConnecting ? 'Connecting...' : `Connect ${walletInfo.name}`}
       </Button>
 
       {/* Error Modal */}
@@ -99,19 +107,30 @@ export default function WalletConnect({ className }: WalletConnectProps) {
             <div className="text-4xl mb-4">⚠️</div>
             <p className="text-gray-600 mb-4">{error}</p>
             
-            {error?.includes('MetaMask') && (
+            {!walletInfo.isAvailable && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Install MetaMask</h4>
+                <h4 className="font-medium text-blue-900 mb-2">Install a Web3 Wallet</h4>
                 <p className="text-sm text-blue-800 mb-3">
-                  MetaMask is required to connect your wallet and make transactions.
+                  You need a Web3 wallet to connect and make transactions.
                 </p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => window.open('https://metamask.io/download/', '_blank')}
-                >
-                  Download MetaMask
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => window.open('https://metamask.io/download/', '_blank')}
+                    className="w-full"
+                  >
+                    Download MetaMask
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open('https://coindcx.com/', '_blank')}
+                    className="w-full"
+                  >
+                    Get CoinDCX Wallet
+                  </Button>
+                </div>
               </div>
             )}
           </div>

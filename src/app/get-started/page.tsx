@@ -20,6 +20,7 @@ export default function Home() {
   const [userId, setUserId] = useState<string>(ethers.ZeroAddress);
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'error'>('idle');
   const [isMobile, setIsMobile] = useState(true);
+  const [stealthKeysGenerated, setStealthKeysGenerated] = useState(false);
    
   // Mobile / in-app detection and stable setu
   useEffect(() => {
@@ -144,7 +145,7 @@ export default function Home() {
 
   
 
-  const handleSuccessfulVerification = (result: any) => {
+  const handleSuccessfulVerification = async (result: any) => {
     try {
       console.log("Verification result received:", result);
       
@@ -162,17 +163,61 @@ export default function Home() {
       console.log("Identity Commitment:", identityCommitment);
       console.log("ZK Proof:", zkProof);
       
-      // Store the verification data (you can save this to state or localStorage)
+      // Store the verification data
       localStorage.setItem('aadhaar_identity_commitment', identityCommitment);
       localStorage.setItem('aadhaar_verification_data', JSON.stringify(verificationData));
+      localStorage.setItem('aadhaar_verified', 'true');
+      localStorage.setItem('verification_timestamp', new Date().toISOString());
       
-      displayToast("✅ Aadhaar verification successful! Identity committed.");
+      displayToast("✅ Aadhaar verification successful!");
       
-      // TODO: Navigate to next step or update UI to show verified status
+      // Auto-generate stealth keys after successful verification
+      if (wallet?.address) {
+        await generateStealthKeysAutomatically();
+      }
       
     } catch (err: any) {
       console.error("Failed to process verification result:", err);
       displayToast(`❌ Verification failed: ${err.message}`);
+    }
+  };
+
+  const generateStealthKeysAutomatically = async () => {
+    try {
+      if (!wallet?.address) return;
+      
+      displayToast("🔐 Setting up your private payment system...");
+      
+      // Import stealth functions and user profile
+      const { generateStealthKeysFromWallet, saveStealthKeysToStorage, formatStealthMetaAddress } = await import('../../lib/stealth');
+      const { updateVerificationStatus, updateStealthMetaAddress } = await import('../../lib/userProfile');
+      
+      // Get signer
+      if (typeof window !== 'undefined' && window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        
+        // Generate stealth keys
+        const stealthKeys = await generateStealthKeysFromWallet(wallet.address, signer);
+        
+        // Save to storage
+        saveStealthKeysToStorage(stealthKeys);
+        
+        // Update user profile
+        updateVerificationStatus(wallet.address, true);
+        updateStealthMetaAddress(wallet.address, stealthKeys.stealthMetaAddress);
+        
+        setStealthKeysGenerated(true);
+        displayToast("✅ Setup complete! You can now buy and sell with complete privacy.");
+        
+        // Navigate to dashboard after a delay
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error generating stealth keys:', error);
+      displayToast("⚠️ Verification complete, but private payments need manual setup.");
     }
   };
 
@@ -236,16 +281,21 @@ export default function Home() {
                 
                 // The Self SDK handles the backend verification automatically
                 // The verification result should be available through the backend
-                setTimeout(() => {
+                setTimeout(async () => {
                   setVerificationStatus('success');
-                  displayToast("✅ Aadhaar verification successful! You can now create listings.");
                   
                   // Store verification status
                   localStorage.setItem('aadhaar_verified', 'true');
                   localStorage.setItem('verification_timestamp', new Date().toISOString());
                   
-                  // TODO: Navigate to dashboard or next step
-                  // window.location.href = '/dashboard';
+                  displayToast("✅ Aadhaar verification successful!");
+                  
+                  // Auto-generate stealth keys
+                  if (wallet?.address) {
+                    await generateStealthKeysAutomatically();
+                  } else {
+                    displayToast("✅ Verification complete! Connect wallet to enable private payments.");
+                  }
                 }, 2000);
               }}
               onError={() => {
@@ -276,9 +326,17 @@ export default function Home() {
             </div>
           )}
           {verificationStatus === 'success' && (
-            <div className="flex items-center justify-center gap-2 text-green-600">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm">✅ Verification successful!</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2 text-green-600">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm">✅ Verification successful!</span>
+              </div>
+              {stealthKeysGenerated && (
+                <div className="flex items-center justify-center gap-2 text-blue-600">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm">🔐 Private payments enabled!</span>
+                </div>
+              )}
             </div>
           )}
           {verificationStatus === 'error' && (

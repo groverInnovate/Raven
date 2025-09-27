@@ -1,6 +1,15 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { 
+  isWalletAvailable,
+  getAvailableWallet,
+  waitForWallet, 
+  handleWalletError, 
+  safeWalletRequest,
+  getNetworkName,
+  formatBalance
+} from '../lib/walletUtils';
 
 export interface WalletInfo {
   address: string;
@@ -35,102 +44,161 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [lastConnectionAttempt, setLastConnectionAttempt] = useState<number>(0);
 
   // Ensure we're on the client side
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Check for existing connection on mount
+  // Check for existing connection on mount with delay
   useEffect(() => {
     if (isClient) {
-      checkExistingConnection();
+      // Add delay to prevent rapid requests and let wallet load
+      const timer = setTimeout(() => {
+        checkExistingConnection().catch(error => {
+          console.log('Initial connection check failed:', error.message);
+        });
+      }, 2000); // Increased delay to 2 seconds
+      return () => clearTimeout(timer);
     }
   }, [isClient]);
 
   const checkExistingConnection = async () => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      try {
-        console.log('Checking for existing wallet connection...');
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts.length > 0) {
-          await connectWalletInternal();
-        }
-      } catch (error) {
-        console.error('Error checking existing connection:', error);
+    if (!isWalletAvailable()) {
+      console.log('No Web3 wallet available, skipping connection check');
+      return;
+    }
+
+    try {
+      const walletInfo = getAvailableWallet();
+      console.log(`Detected wallet: ${walletInfo.name}`);
+
+      // Rate limiting: don't check too frequently
+      const now = Date.now();
+      if (now - lastConnectionAttempt < 3000) {
+        console.log('Rate limiting: skipping connection check');
+        return;
       }
+      setLastConnectionAttempt(now);
+
+      console.log(`Checking for existing ${walletInfo.name} connection...`);
+      
+      // Wait for wallet to be ready
+      const isReady = await waitForWallet(2000);
+      if (!isReady) {
+        console.log(`${walletInfo.name} not ready, skipping connection check`);
+        return;
+      }
+      
+      // Use safe wallet request
+      const accounts = await safeWalletRequest('eth_accounts', [], 1);
+        
+      if (accounts && accounts.length > 0) {
+        console.log(`Found existing ${walletInfo.name} connection, connecting...`);
+        await connectWalletInternal(true);
+      } else {
+        console.log('No existing connection found');
+      }
+    } catch (error: any) {
+      const errorMessage = handleWalletError(error);
+      console.error('Error checking existing connection:', errorMessage);
+      
+      // Don't throw error for existing connection checks
+      // Just log and continue
     }
   };
 
   const connectWallet = async () => {
-    await connectWalletInternal();
+    await connectWalletInternal(false);
   };
 
-  const connectWalletInternal = async () => {
-    if (!isClient || typeof window === 'undefined') {
+  const connectWalletInternal = async (isExistingConnection: boolean = false) => {
+    if (!isClient) {
       console.log('Not on client side, skipping wallet connection');
       return;
     }
 
-    if (!window.ethereum) {
-      throw new Error('No wallet detected. Please install MetaMask or another Ethereum wallet.');
+    if (!isWalletAvailable()) {
+      throw new Error('No Web3 wallet is installed. Please install MetaMask, CoinDCX wallet, or another Web3 wallet to continue.');
     }
+
+    // Rate limiting for connection attempts
+    const now = Date.now();
+    if (!isExistingConnection && now - lastConnectionAttempt < 5000) {
+      console.log('Rate limiting: connection attempt too soon');
+      return;
+    }
+    setLastConnectionAttempt(now);
 
     setIsConnecting(true);
 
     try {
-      // Wait for MetaMask to be ready
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Handle multiple providers
-      let provider = window.ethereum;
-      if (window.ethereum.providers?.length > 0) {
-        const metaMaskProvider = window.ethereum.providers.find((p: any) => p.isMetaMask);
-        provider = metaMaskProvider || window.ethereum.providers[0];
+      const walletInfo = getAvailableWallet();
+      
+      // Wait for wallet to be ready
+      const isReady = await waitForWallet(3000);
+      if (!isReady) {
+        throw new Error(`${walletInfo.name} is not ready. Please refresh the page and try again.`);
       }
 
-      console.log('Requesting wallet connection...');
-      const accounts = await provider.request({
-        method: 'eth_requestAccounts',
-      });
+      console.log(`Requesting ${walletInfo.name} connection...`);
+      
+      // Use safe wallet requests with retry logic
+      const method = isExistingConnection ? 'eth_accounts' : 'eth_requestAccounts';
+      const accounts = await safeWalletRequest(method, [], isExistingConnection ? 1 : 2);
 
-      if (accounts.length === 0) {
+      if (!accounts || accounts.length === 0) {
         throw new Error('No accounts found. Please unlock your wallet.');
       }
 
-      // Get network and balance
+      // Get network and balance with safe requests
       const [chainId, balance] = await Promise.all([
-        provider.request({ method: 'eth_chainId' }),
-        provider.request({
-          method: 'eth_getBalance',
-          params: [accounts[0], 'latest'],
-        })
+        safeWalletRequest('eth_chainId'),
+        safeWalletRequest('eth_getBalance', [accounts[0], 'latest'])
       ]);
 
-      const balanceInEth = (parseInt(balance, 16) / Math.pow(10, 18)).toFixed(4);
+      const balanceInEth = formatBalance((parseInt(balance, 16) / Math.pow(10, 18)).toString());
 
-      const walletInfo: WalletInfo = {
+      const connectedWallet: WalletInfo = {
         address: accounts[0],
         balance: balanceInEth,
         network: getNetworkName(chainId),
         isConnected: true,
       };
 
-      setWallet(walletInfo);
-      console.log('Wallet connected globally:', walletInfo);
+      setWallet(connectedWallet);
+      console.log(`${walletInfo.name} connected successfully:`, {
+        address: connectedWallet.address.slice(0, 10) + '...',
+        network: connectedWallet.network,
+        balance: connectedWallet.balance
+      });
 
-      // Set up event listeners
-      if (window.ethereum.removeAllListeners) {
-        window.ethereum.removeAllListeners('accountsChanged');
-        window.ethereum.removeAllListeners('chainChanged');
+      // Set up event listeners safely
+      try {
+        if (window.ethereum.removeAllListeners) {
+          window.ethereum.removeAllListeners('accountsChanged');
+          window.ethereum.removeAllListeners('chainChanged');
+        }
+        
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+        window.ethereum.on('chainChanged', handleChainChanged);
+      } catch (listenerError) {
+        console.warn('Could not set up event listeners:', listenerError);
       }
-      
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
 
     } catch (error: any) {
-      console.error('Wallet connection failed:', error);
-      throw error;
+      const errorMessage = handleWalletError(error);
+      console.error('Wallet connection failed:', errorMessage);
+      
+      // For existing connections, don't throw error, just log
+      if (isExistingConnection) {
+        console.log('Skipping error throw for existing connection check');
+        return;
+      }
+      
+      // For new connections, throw the user-friendly error
+      throw new Error(errorMessage);
     } finally {
       setIsConnecting(false);
     }
@@ -166,20 +234,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
 
-  const getNetworkName = (chainId: string): string => {
-    const networks: { [key: string]: string } = {
-      '0x1': 'Ethereum Mainnet',
-      '0x3': 'Ropsten Testnet',
-      '0x4': 'Rinkeby Testnet',
-      '0x5': 'Goerli Testnet',
-      '0x89': 'Polygon Mainnet',
-      '0x13881': 'Polygon Mumbai',
-      '0xa86a': 'Avalanche Mainnet',
-      '0xa869': 'Avalanche Fuji',
-      '0xaa36a7': 'Sepolia Testnet',
-    };
-    return networks[chainId] || `Network ${chainId}`;
-  };
+
 
   const value: WalletContextType = {
     wallet,
