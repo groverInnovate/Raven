@@ -13,10 +13,10 @@ export default function SimpleTestPage() {
   const { wallet } = useWallet();
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
 
-  // Mock seller data for testing
+  // Use connected user as seller for testing (self-payment test)
   const mockSeller = {
-    walletAddress: '0x742d35Cc6634C0532925a3b8D0C9C0532925a3b8',
-    name: 'John Seller',
+    walletAddress: wallet?.address || '0x742d35Cc6634C0532925a3b8D0C9C0532925a3b8',
+    name: wallet?.address ? 'You (Test Seller)' : 'John Seller',
     itemTitle: 'Vintage Leather Jacket',
     price: '0.01' // Small amount for testing
   };
