@@ -1,247 +1,205 @@
 "use client";
 
 import { useState } from "react";
-import { Modal, ModalBody, ModalFooter, Input, Button, Badge } from '../ui';
-import { Listing } from './ListingCard';
-import { ipfsService, IPFSListing } from '../../lib/ipfs';
+import Modal, { ModalBody, ModalFooter } from '../ui/Modal';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
+import { useNullifier } from '../../contexts/NullifierContext';
 
 interface CreateListingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (listing: Partial<Listing>) => void;
+  onSubmit?: () => void;
 }
 
-const categories = [
-  'Electronics', 'Fashion', 'Furniture', 'Books', 'Sports', 
-  'Art', 'Jewelry', 'Collectibles', 'Home & Garden', 'Other'
-];
-
-const conditions = ['New', 'Like New', 'Excellent', 'Good', 'Fair'];
-
 export default function CreateListingModal({ isOpen, onClose, onSubmit }: CreateListingModalProps) {
+  const { nullifier, isVerified } = useNullifier();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    price: '',
-    category: 'Electronics',
-    condition: 'New',
-    isAdultOnly: false,
-    isIndiaOnly: false,
-    image: ''
+    api_key: '',
+    price: ''
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.title || !formData.description || !formData.price) {
-      alert('Please fill in all required fields');
+    if (!formData.title || !formData.api_key || !formData.price) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Get nullifier from localStorage as primary source
+    const localStorageNullifier = typeof window !== 'undefined' ? localStorage.getItem('nullifier') : null;
+    const nullifierToUse = localStorageNullifier || nullifier;
+
+    if (!nullifierToUse) {
+      setError('You must be verified to create listings. Please complete verification first.');
       return;
     }
     
+    console.log('📝 Creating listing with nullifier from localStorage:', localStorageNullifier);
+    
     setIsSubmitting(true);
+    setError('');
+    setSuccess('');
     
     try {
-      // Create IPFS listing data
-      const ipfsListingData: Omit<IPFSListing, 'metadata'> = {
-        id: Date.now().toString(),
-        title: formData.title,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        currency: 'INR',
-        category: formData.category,
-        condition: formData.condition,
-        images: formData.image ? [formData.image] : ['https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop'],
-        seller: '0x1234...5678', // This would come from connected wallet
-        sellerName: 'You',
-        location: 'India',
-        isAdultOnly: formData.isAdultOnly,
-        isIndiaOnly: formData.isIndiaOnly,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      // Upload to IPFS
-      console.log('Uploading listing to IPFS...');
-      const ipfsListing = await ipfsService.uploadListing(ipfsListingData);
-      
-      // Convert to regular listing format for the UI
-      const newListing: Listing = {
-        ...ipfsListing,
-        image: ipfsListing.images[0],
-        sellerRating: 4.5,
-        status: 'active' as const,
-      };
-      
-      console.log('Listing uploaded to IPFS with hash:', ipfsListing.metadata.ipfsHash);
-      
-      await onSubmit(newListing);
-      
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        price: '',
-        category: 'Electronics',
-        condition: 'New',
-        isAdultOnly: false,
-        isIndiaOnly: false,
-        image: ''
+      const response = await fetch('/api/listings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nullifier: nullifierToUse,
+          title: formData.title,
+          description: formData.description,
+          api_key: formData.api_key,
+          price: parseFloat(formData.price)
+        }),
       });
-      
-      onClose();
-    } catch (error) {
-      console.error('Error creating listing:', error);
-      alert('Failed to create listing. Please try again.');
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setSuccess('Listing created successfully!');
+        setFormData({ title: '', description: '', api_key: '', price: '' });
+        setTimeout(() => {
+          onClose();
+          onSubmit?.();
+        }, 1500);
+      } else {
+        setError(result.error || 'Failed to create listing');
+      }
+    } catch (err: any) {
+      setError('Network error: ' + err.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setError('');
+    setSuccess('');
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Create New Listing"
-      description="List your item on the marketplace"
-      size="lg"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} size="md">
       <form onSubmit={handleSubmit}>
         <ModalBody>
           <div className="space-y-6">
-            {/* Title */}
-            <Input
-              label="Title"
-              placeholder="Enter item title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              required
-            />
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description *
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={4}
-                className="ghost-input w-full px-3 py-2 text-sm resize-none"
-                placeholder="Describe your item in detail"
-                required
-              />
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Create New Listing
+              </h2>
+              <p className="text-gray-600">
+                Add your API service to the marketplace
+              </p>
             </div>
 
-            {/* Price and Category */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Verification Status */}
+            {!isVerified && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-yellow-800 text-sm">
+                    ⚠️ You must complete Aadhaar verification to create listings
+                  </p>
+                </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-800 text-sm">{error}</p>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {success && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <p className="text-green-800 text-sm">{success}</p>
+              </div>
+            )}
+
+            {/* Form Fields */}
+            <div className="space-y-4">
               <Input
-                label="Price (₹)"
-                type="number"
-                placeholder="0"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                min="0"
-                step="0.01"
+                label="Title"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                placeholder="Enter listing title"
                 required
+                disabled={isSubmitting}
               />
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category
+                  Description
                 </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="ghost-input w-full px-3 py-2 text-sm"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Condition */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Condition
-              </label>
-              <select
-                value={formData.condition}
-                onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
-                className="ghost-input w-full px-3 py-2 text-sm"
-              >
-                {conditions.map((cond) => (
-                  <option key={cond} value={cond}>{cond}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Image URL */}
-            <Input
-              label="Image URL (Optional)"
-              type="url"
-              placeholder="https://example.com/image.jpg"
-              value={formData.image}
-              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              helperText="Add a URL to an image of your item"
-            />
-
-            {/* Checkboxes */}
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="adultOnly"
-                  checked={formData.isAdultOnly}
-                  onChange={(e) => setFormData({ ...formData, isAdultOnly: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Describe your API service (optional)"
+                  disabled={isSubmitting}
+                  rows={3}
+                  className="ghost-input w-full px-3 py-2 text-sm resize-none"
                 />
-                <label htmlFor="adultOnly" className="flex items-center text-sm text-gray-700">
-                  <Badge variant="danger" size="sm" className="mr-2">
-                    18+
-                  </Badge>
-                  Adult content/age-restricted item
-                </label>
               </div>
 
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="indiaOnly"
-                  checked={formData.isIndiaOnly}
-                  onChange={(e) => setFormData({ ...formData, isIndiaOnly: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="indiaOnly" className="flex items-center text-sm text-gray-700">
-                  <Badge variant="secondary" size="sm" className="mr-2">
-                    🇮🇳
-                  </Badge>
-                  Available only to Indian buyers
-                </label>
-              </div>
+              <Input
+                label="API Key"
+                value={formData.api_key}
+                onChange={(e) => handleInputChange('api_key', e.target.value)}
+                placeholder="Enter your API key"
+                required
+                disabled={isSubmitting}
+              />
+
+              <Input
+                label="Price (INR)"
+                type="number"
+                value={formData.price}
+                onChange={(e) => handleInputChange('price', e.target.value)}
+                placeholder="0.00"
+                required
+                disabled={isSubmitting}
+                min="0"
+                step="0.01"
+              />
             </div>
           </div>
         </ModalBody>
 
         <ModalFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={isSubmitting}
-          >
-            Create Listing
-          </Button>
+          <div className="flex gap-3 w-full">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={(() => {
+                const localStorageNullifier = typeof window !== 'undefined' ? localStorage.getItem('nullifier') : null;
+                const hasVerification = localStorageNullifier || isVerified;
+                return isSubmitting || !hasVerification;
+              })()}
+              className="flex-1"
+            >
+              {isSubmitting ? 'Creating...' : 'Create Listing'}
+            </Button>
+          </div>
         </ModalFooter>
       </form>
     </Modal>

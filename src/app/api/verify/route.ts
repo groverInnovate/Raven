@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { SelfBackendVerifier, AllIds, DefaultConfigStore } from "@selfxyz/core";
 import { nullifierMappingService } from "../../../lib/nullifierMapping";
+import { SupabaseService } from "../../../lib/supabase";
 
 // Reuse a single verifier instance
 const selfBackendVerifier = new SelfBackendVerifier(
   "aadhaar", // scope - matches frontend
-  "https://af82165cc6e6.ngrok-free.app/api/verify", // endpoint - matches frontend
+  process.env.NGROK_ENDPOINT || "https://e1a66e841f96.ngrok-free.app/api/verify", // endpoint - matches frontend
   false, // mockPassport: true for staging/testnet
   AllIds,
   new DefaultConfigStore({
@@ -68,16 +69,33 @@ export async function POST(req: Request) {
       // Store user verification data using nullifier mapping
       if (nullifier) {
         try {
-          console.log(`📝 Storing user verification data in nullifier mapping for: ${nullifier}`);
+          console.log(`📝 Storing user verification data for nullifier: ${nullifier}`);
           
-          // Prepare the data to store in the mapping
+          // Prepare the data to store
           const userDataToStore = {
             verificationData: result.discloseOutput,
             userAddress: userContextData,
             documentType: attestationId
           };
 
-          // Update the nullifier mapping on Pinata
+          // Store in Supabase Database (primary storage)
+          const supabaseData = {
+            nullifier: nullifier,
+            nationality: result.discloseOutput?.nationality || 'Unknown',
+            minimum_age: parseInt(result.discloseOutput?.minimumAge?.toString() || '0'),
+            user_address: userContextData
+          };
+          
+          const supabaseResult = await SupabaseService.storeVerifiedUser(supabaseData);
+          
+          if (supabaseResult.success) {
+            console.log(`✅ User data stored in Supabase successfully`);
+          } else {
+            console.warn("⚠️ Failed to store in Supabase:", supabaseResult.error);
+          }
+
+
+          // Also store in IPFS mapping (backup/decentralized storage)
           const mappingResult = await nullifierMappingService.updateMapping(nullifier, userDataToStore);
 
           if (mappingResult.success) {
@@ -86,7 +104,7 @@ export async function POST(req: Request) {
             console.warn("⚠️ Failed to update nullifier mapping, but verification still successful");
           }
         } catch (error) {
-          console.warn("⚠️ Error updating nullifier mapping:", error);
+          console.warn("⚠️ Error storing verification data:", error);
           // Don't fail the verification if storage fails
         }
       }
