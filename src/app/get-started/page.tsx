@@ -1,23 +1,22 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { getUniversalLink } from "@selfxyz/core";
+import { useWallet } from "../../contexts/WalletContext";
+import { ethers, getAddress } from "ethers";
 import {
   SelfQRcodeWrapper,
   SelfAppBuilder,
   type SelfApp,
   countries,
 } from "@selfxyz/qrcode";
-import { ethers, getAddress } from "ethers";
+import { getUniversalLink } from "@selfxyz/core";
 
 export default function Home() {
+  const { wallet, connectWallet, isConnecting } = useWallet();
 
   const [linkCopied, setLinkCopied] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  // Self app instance and universal link are memoized below
-  const [walletAddress, setWalletAddress] = useState<string>("");
-  const [walletError, setWalletError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string>(ethers.ZeroAddress);
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'error'>('idle');
   const [isMobile, setIsMobile] = useState(true);
@@ -36,42 +35,19 @@ export default function Home() {
     }
   }, []);
 
-  // Wallet accounts detection
+  // Update userId when wallet connects
   useEffect(() => {
-    const eth = (typeof window !== "undefined" && (window as any).ethereum) || null;
-    if (!eth) return;
-    const onAccounts = (accounts: string[]) => {
+    if (wallet?.address) {
       try {
-        if (accounts && accounts[0]) {
-          const a = getAddress(accounts[0]);
-          setWalletAddress(a);
-          setUserId(a);
-          setWalletError(null);
-        }
-      } catch {
-        setWalletError("Invalid wallet address");
-      }
-    };
-    eth.request?.({ method: "eth_accounts" }).then(onAccounts).catch(() => {});
-    eth.on?.("accountsChanged", onAccounts);
-    return () => { try { eth.removeListener?.("accountsChanged", onAccounts); } catch {} };
-  }, []);
-
-  async function connectWallet() {
-    try {
-      const eth = (window as any).ethereum;
-      if (!eth) { setWalletError("No wallet found in this browser"); return; }
-      const accounts = await eth.request({ method: "eth_requestAccounts" });
-      if (accounts && accounts[0]) {
-        const a = getAddress(accounts[0]);
-        setWalletAddress(a);
+        const a = getAddress(wallet.address);
         setUserId(a);
-        setWalletError(null);
+      } catch {
+        setUserId(ethers.ZeroAddress);
       }
-    } catch (e: any) {
-      setWalletError(e?.message || "Failed to connect wallet");
+    } else {
+      setUserId(ethers.ZeroAddress);
     }
-  }
+  }, [wallet]);
 
   // Use a publicly accessible endpoint (Self SDK doesn't allow localhost)
   const endpointAddr = process.env.NEXT_PUBLIC_SELF_ENDPOINT || 'https://staging.self.xyz/api/verify';
@@ -83,9 +59,9 @@ export default function Home() {
       }
       
       // Don't create QR code if wallet not connected
-      if (!walletAddress || userId === ethers.ZeroAddress) {
+      if (!wallet?.address || userId === ethers.ZeroAddress) {
         console.log("Waiting for wallet connection...", {
-          walletAddress,
+          walletAddress: wallet?.address,
           userId,
           isZeroAddress: userId === ethers.ZeroAddress
         });
@@ -95,7 +71,7 @@ export default function Home() {
       console.log("Creating Self app with:", {
         endpoint: endpointAddr,
         userId: userId,
-        walletAddress: walletAddress
+        walletAddress: wallet.address
       });
       
       const app = new SelfAppBuilder({
@@ -120,7 +96,7 @@ export default function Home() {
       console.error("Failed to initialize Self app:", e);
       return null;
     }
-  }, [endpointAddr, userId, walletAddress]);
+  }, [endpointAddr, userId, wallet?.address]);
 
   const universalLink = useMemo(() => (selfApp ? getUniversalLink(selfApp) : ""), [selfApp]);
 
@@ -207,10 +183,16 @@ export default function Home() {
         </div>
         {/* Connect wallet */}
         <div className="mb-4">
-          <div className="mt-1 text-xs font-mono text-gray-700 break-all">{walletAddress?"Connected":"Not connected"}</div>
+          <div className="mt-1 text-xs font-mono text-gray-700 break-all">{wallet?.address ? "Connected" : "Not connected"}</div>
           <div className="mt-3 flex gap-2 justify-center">
-            <button type="button" onClick={connectWallet} className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm">Connect Wallet</button>
-            {walletError && <span className="text-xs text-amber-600 self-center">{walletError}</span>}
+            <button 
+              type="button" 
+              onClick={connectWallet} 
+              disabled={isConnecting || !!wallet?.address}
+              className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isConnecting ? "Connecting..." : wallet?.address ? "Wallet Connected" : "Connect Wallet"}
+            </button>
           </div>
         </div>
 
@@ -226,7 +208,7 @@ export default function Home() {
         </div>
 
         <div className="flex justify-center mb-4 sm:mb-6">
-          {!walletAddress ? (
+          {!wallet?.address ? (
             <div className="w-[256px] h-[256px] bg-yellow-50 border-2 border-yellow-200 flex items-center justify-center rounded-lg">
               <div className="text-center p-4">
                 <p className="text-yellow-700 text-sm font-medium mb-2">Wallet Required</p>
