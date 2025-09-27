@@ -5,6 +5,8 @@ import Link from "next/link";
 import ListingCard from "../../components/ListingCard";
 import CreateListingModal from "../../components/CreateListingModal";
 import StatusBadge from "../../components/StatusBadge";
+import OnboardingStatus from "../../components/OnboardingStatus";
+import SimplePaymentDashboard from "../../components/SimplePaymentDashboard";
 
 // Mock data for user's listings and purchases
 const mockUserListings = [
@@ -47,7 +49,7 @@ const mockUserPurchases = [
 ];
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<'listings' | 'purchases' | 'profile'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'purchases' | 'profile' | 'payments'>('listings');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [userListings, setUserListings] = useState(mockUserListings);
   
@@ -107,6 +109,9 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
           <p className="text-gray-600">Manage your listings, purchases, and profile</p>
         </div>
+
+        {/* Onboarding Status */}
+        <OnboardingStatus className="mb-6" />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -170,6 +175,16 @@ export default function DashboardPage() {
                 }`}
               >
                 Profile
+              </button>
+              <button
+                onClick={() => setActiveTab('payments')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'payments'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                💰 Payments
               </button>
             </nav>
           </div>
@@ -328,6 +343,14 @@ export default function DashboardPage() {
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Payments Tab */}
+            {activeTab === 'payments' && (
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Private Payments</h2>
+                <SimplePaymentDashboard />
               </div>
             )}
           </div>

@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@fluidkey/stealth-account-kit": "^1.1.0",
     "@selfxyz/core": "^1.1.0-beta.6",
     "@selfxyz/qrcode": "^1.0.15",
     "ethers": "^6.13.4",

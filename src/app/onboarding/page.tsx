@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { StealthKeyManager } from "../../components/stealth/StealthKeyManager";
 
 export default function OnboardingPage() {
   const [userType, setUserType] = useState<'buyer' | 'seller' | null>(null);
   const [step, setStep] = useState(1);
   const [isGeneratingProof, setIsGeneratingProof] = useState(false);
   const [aadharVerified, setAadharVerified] = useState(false);
+  const [stealthKeysGenerated, setStealthKeysGenerated] = useState(false);
+  const [stealthMetaAddress, setStealthMetaAddress] = useState<string | null>(null);
 
   const handleAadharVerification = async () => {
     setIsGeneratingProof(true);
@@ -15,14 +18,24 @@ export default function OnboardingPage() {
     setTimeout(() => {
       setIsGeneratingProof(false);
       setAadharVerified(true);
-      setStep(3);
+      // For sellers, go to stealth key setup; for buyers, go to completion
+      setStep(userType === 'seller' ? 3 : 4);
     }, 3000);
+  };
+
+  const handleStealthKeysGenerated = (metaAddress: string) => {
+    setStealthKeysGenerated(true);
+    setStealthMetaAddress(metaAddress);
+    console.log('Stealth keys generated:', metaAddress);
   };
 
   const handleComplete = () => {
     alert('Onboarding completed! Welcome to GhostPalace!');
     // Redirect to dashboard or listings
   };
+
+  // Calculate total steps based on user type
+  const totalSteps = userType === 'seller' ? 4 : 3;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
@@ -77,11 +90,26 @@ export default function OnboardingPage() {
             <div className={`flex items-center justify-center w-10 h-10 rounded-full ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
               3
             </div>
+            {userType === 'seller' && (
+              <>
+                <div className={`h-1 w-16 ${step >= 4 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${step >= 4 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                  4
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex justify-center space-x-12 mt-2">
+          <div className={`flex justify-center mt-2 ${userType === 'seller' ? 'space-x-8' : 'space-x-12'}`}>
             <span className="text-sm text-gray-600">Choose Role</span>
             <span className="text-sm text-gray-600">Verify Identity</span>
-            <span className="text-sm text-gray-600">Complete Setup</span>
+            {userType === 'seller' ? (
+              <>
+                <span className="text-sm text-gray-600">Privacy Setup</span>
+                <span className="text-sm text-gray-600">Complete</span>
+              </>
+            ) : (
+              <span className="text-sm text-gray-600">Complete Setup</span>
+            )}
           </div>
         </div>
 
@@ -215,7 +243,7 @@ export default function OnboardingPage() {
                 </button>
                 {aadharVerified && (
                   <button
-                    onClick={() => setStep(3)}
+                    onClick={() => setStep(userType === 'seller' ? 3 : 4)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md transition-colors"
                   >
                     Continue
@@ -225,8 +253,46 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 3: Complete Setup */}
-          {step === 3 && (
+          {/* Step 3: Stealth Key Setup (Sellers Only) */}
+          {step === 3 && userType === 'seller' && (
+            <div className="max-w-2xl mx-auto">
+              <div className="text-center mb-8">
+                <div className="text-6xl mb-6">🔐</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  Setup Financial Privacy
+                </h2>
+                <p className="text-gray-600">
+                  Generate your stealth keys to enable private payments. This ensures your 
+                  financial transactions remain confidential while maintaining your verified reputation.
+                </p>
+              </div>
+
+              <StealthKeyManager 
+                onKeysGenerated={handleStealthKeysGenerated}
+                className="mb-8"
+              />
+
+              <div className="flex justify-between">
+                <button
+                  onClick={() => setStep(2)}
+                  className="border border-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Back
+                </button>
+                {stealthKeysGenerated && (
+                  <button
+                    onClick={() => setStep(4)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md transition-colors"
+                  >
+                    Complete Setup
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Complete Setup (or Step 3 for Buyers) */}
+          {((step === 4 && userType === 'seller') || (step === 3 && userType === 'buyer')) && (
             <div className="text-center max-w-2xl mx-auto">
               <div className="text-6xl mb-6">🎉</div>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -235,6 +301,11 @@ export default function OnboardingPage() {
               <p className="text-gray-600 mb-8">
                 Your account is now set up and verified. You're ready to start {userType === 'buyer' ? 'shopping' : 'selling'} 
                 on India's most trusted P2P marketplace.
+                {userType === 'seller' && stealthKeysGenerated && (
+                  <span className="block mt-2 text-blue-600 font-medium">
+                    ✨ Plus, you now have financial privacy protection enabled!
+                  </span>
+                )}
               </p>
 
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
@@ -262,8 +333,12 @@ export default function OnboardingPage() {
                         <span>Create your first listing</span>
                       </div>
                       <div className="flex items-center space-x-2">
+                        <span>🔐</span>
+                        <span>Receive private payments via stealth addresses</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
                         <span>💰</span>
-                        <span>Receive payments securely</span>
+                        <span>Maintain financial privacy while building reputation</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <span>📊</span>
@@ -273,6 +348,22 @@ export default function OnboardingPage() {
                   )}
                 </div>
               </div>
+
+              {/* Show stealth meta-address for sellers */}
+              {userType === 'seller' && stealthMetaAddress && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+                  <h3 className="font-semibold text-blue-900 mb-3">🔐 Your Stealth Meta-Address</h3>
+                  <p className="text-sm text-blue-800 mb-3">
+                    Share this address with buyers for private payments:
+                  </p>
+                  <div className="bg-white p-3 rounded border font-mono text-xs break-all text-gray-700">
+                    {stealthMetaAddress}
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    💡 This address is safely stored in your browser and tied to your wallet
+                  </p>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 {userType === 'buyer' ? (
