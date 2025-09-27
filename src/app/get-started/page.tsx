@@ -40,17 +40,24 @@ export default function Home() {
     if (wallet?.address) {
       try {
         const a = getAddress(wallet.address);
+        console.log("Setting userId from wallet address:", {
+          originalAddress: wallet.address,
+          checksummedAddress: a,
+          userId: a
+        });
         setUserId(a);
-      } catch {
+      } catch (error) {
+        console.error("Failed to get address:", error);
         setUserId(ethers.ZeroAddress);
       }
     } else {
+      console.log("No wallet address, setting userId to ZeroAddress");
       setUserId(ethers.ZeroAddress);
     }
   }, [wallet]);
 
   // Use a publicly accessible endpoint (Self SDK doesn't allow localhost)
-  const endpointAddr = process.env.NEXT_PUBLIC_SELF_ENDPOINT || 'https://staging.self.xyz/api/verify';
+  const endpointAddr = 'https://af82165cc6e6.ngrok-free.app/api/verify';
   const selfApp: SelfApp | null = useMemo(() => {
     try {
       if (!endpointAddr) {
@@ -71,22 +78,26 @@ export default function Home() {
       console.log("Creating Self app with:", {
         endpoint: endpointAddr,
         userId: userId,
-        walletAddress: wallet.address
+        userIdLength: userId.length,
+        userIdType: typeof userId,
+        walletAddress: wallet.address,
+        isValidAddress: userId !== ethers.ZeroAddress
       });
       
       const app = new SelfAppBuilder({
         version: 2,
         appName: "Aadhaar Shield",
-        scope: "aadhaar-shield-marketplace",
+        scope: "aadhaar",
         endpoint: endpointAddr,
         logoBase64: "https://i.postimg.cc/mrmVf9hm/self.png",
         userId: userId,
-        endpointType: "staging_celo",
+        endpointType: "https",
         userIdType: "hex",
-        userDefinedData: "Aadhaar Shield marketplace verification",
+        userDefinedData: "Aadhaar",
         disclosures: {
           minimumAge: 18,
-          excludedCountries: [countries.CUBA, countries.IRAN, countries.NORTH_KOREA, countries.RUSSIA],
+          excludedCountries: [],
+          ofac: false,
         }
       }).build();
       
