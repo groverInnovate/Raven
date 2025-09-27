@@ -58,7 +58,7 @@ export default function Home() {
   }, [wallet]);
 
   // Use a publicly accessible endpoint (Self SDK doesn't allow localhost)
-  const endpointAddr = 'https://af82165cc6e6.ngrok-free.app/api/verify';
+  const endpointAddr = 'https://e1a66e841f96.ngrok-free.app/api/verify';
   const selfApp: SelfApp | null = useMemo(() => {
     try {
       if (!endpointAddr) {
@@ -165,6 +165,8 @@ export default function Home() {
       
       // Store the verification data
       localStorage.setItem('aadhaar_identity_commitment', identityCommitment);
+      // Store the verification data (you can save this to state or localStorage)
+      localStorage.setItem('result', result);
       localStorage.setItem('aadhaar_verification_data', JSON.stringify(verificationData));
       localStorage.setItem('aadhaar_verified', 'true');
       localStorage.setItem('verification_timestamp', new Date().toISOString());
@@ -283,6 +285,43 @@ export default function Home() {
                 // The verification result should be available through the backend
                 setTimeout(async () => {
                   setVerificationStatus('success');
+                // After verification, get the latest nullifier from Supabase
+                  console.log("🔍 Starting nullifier retrieval process...");
+                  
+                  try {
+                    // Get latest nullifier from Supabase (most recent verification)
+                    console.log("🔍 Fetching latest nullifier from database...");
+                    
+                    const response = await fetch(`/api/users/latest-nullifier`);
+                    console.log("📡 API response status:", response.status);
+                    
+                    const result = await response.json();
+                    console.log("📊 API response data:", result);
+                    
+                    if (result.success && result.nullifier) {
+                      // Store nullifier in localStorage with simple key
+                      localStorage.setItem('nullifier', result.nullifier);
+                      console.log("💾 ✅ Nullifier stored in localStorage with key 'nullifier':", result.nullifier);
+                      console.log("🔍 Verification details:", {
+                        nullifier: result.nullifier,
+                        nationality: result.nationality,
+                        minimum_age: result.minimum_age,
+                        user_address: result.user_address,
+                        created_at: result.created_at
+                      });
+                      
+                      setVerificationStatus('success');
+                      displayToast("✅ Aadhaar verification successful! You can now create listings.");
+                    } else {
+                      console.warn("⚠️ Could not retrieve nullifier from Supabase:", result);
+                      setVerificationStatus('success');
+                      displayToast("✅ Aadhaar verification successful! (Note: Please refresh if you have issues creating listings)");
+                    }
+                  } catch (error) {
+                    console.error("❌ Error retrieving nullifier:", error);
+                    setVerificationStatus('success');
+                    displayToast("✅ Aadhaar verification successful! (Note: Please refresh if you have issues creating listings)");
+                  }
                   
                   // Store verification status
                   localStorage.setItem('aadhaar_verified', 'true');
@@ -296,7 +335,7 @@ export default function Home() {
                   } else {
                     displayToast("✅ Verification complete! Connect wallet to enable private payments.");
                   }
-                }, 2000);
+                }, 4000);
               }}
               onError={() => {
                 console.error("Self SDK Error occurred");

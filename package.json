@@ -11,7 +11,10 @@
     "@fluidkey/stealth-account-kit": "^1.1.0",
     "@selfxyz/core": "^1.1.0-beta.6",
     "@selfxyz/qrcode": "^1.0.15",
+    "@supabase/supabase-js": "^2.58.0",
+    "@types/js-cookie": "^3.0.6",
     "ethers": "^6.13.4",
+    "js-cookie": "^3.0.5",
     "next": "15.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

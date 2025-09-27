@@ -14,107 +14,6 @@ import {
   CardContent
 } from "../../components";
 import type { Listing, FilterState } from "../../components";
-import { ipfsService, IPFSListing } from "../../lib/ipfs";
-
-// Mock data for listings
-const mockListings = [
-  {
-    id: "1",
-    title: "Vintage Leather Jacket",
-    description: "Authentic vintage leather jacket from the 1980s. Excellent condition with minimal wear.",
-    price: 8500,
-    currency: "INR",
-    image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=300&fit=crop",
-    seller: "0x1234...5678",
-    sellerName: "VintageCollector",
-    sellerRating: 4.8,
-    category: "Fashion",
-    condition: "Excellent",
-    location: "Mumbai, India",
-    createdAt: "2024-01-15",
-    status: "active" as const
-  },
-  {
-    id: "2",
-    title: "MacBook Pro 16-inch",
-    description: "2023 MacBook Pro with M2 chip, 16GB RAM, 512GB SSD. Perfect for developers and creators.",
-    price: 120000,
-    currency: "INR",
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop",
-    seller: "0x9876...5432",
-    sellerName: "TechGuru",
-    sellerRating: 4.9,
-    category: "Electronics",
-    condition: "Like New",
-    location: "Bangalore, India",
-    createdAt: "2024-01-14",
-    status: "active" as const
-  },
-  {
-    id: "3",
-    title: "Handcrafted Wooden Table",
-    description: "Beautiful oak dining table handcrafted by local artisan. Seats 6 people comfortably.",
-    price: 25000,
-    currency: "INR",
-    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop",
-    seller: "0x5555...7777",
-    sellerName: "WoodCrafter",
-    sellerRating: 4.7,
-    category: "Furniture",
-    condition: "New",
-    location: "Jaipur, India",
-    createdAt: "2024-01-13",
-    status: "active" as const
-  },
-  {
-    id: "4",
-    title: "Rare Pokemon Card Collection",
-    description: "Complete first edition Pokemon card set. All cards in mint condition with protective sleeves.",
-    price: 75000,
-    currency: "INR",
-    image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400&h=300&fit=crop",
-    seller: "0x2222...8888",
-    sellerName: "CardCollector",
-    sellerRating: 4.6,
-    category: "Collectibles",
-    condition: "Mint",
-    location: "Delhi, India",
-    createdAt: "2024-01-12",
-    status: "active" as const
-  },
-  {
-    id: "5",
-    title: "Professional Camera Lens",
-    description: "Canon EF 70-200mm f/2.8L IS III USM lens. Perfect for professional photography.",
-    price: 45000,
-    currency: "INR",
-    image: "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=300&fit=crop",
-    seller: "0x3333...9999",
-    sellerName: "PhotoPro",
-    sellerRating: 4.8,
-    category: "Electronics",
-    condition: "Excellent",
-    location: "Chennai, India",
-    createdAt: "2024-01-11",
-    status: "active" as const
-  },
-  {
-    id: "6",
-    title: "Designer Sneakers",
-    description: "Limited edition designer sneakers, size 10. Never worn, still in original box.",
-    price: 12000,
-    currency: "INR",
-    image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&h=300&fit=crop",
-    seller: "0x4444...1111",
-    sellerName: "SneakerHead",
-    sellerRating: 4.5,
-    category: "Fashion",
-    condition: "New",
-    location: "Pune, India",
-    createdAt: "2024-01-10",
-    status: "active" as const
-  }
-];
 
 export default function ListingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -126,48 +25,55 @@ export default function ListingsPage() {
     location: ""
   });
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [ipfsListings, setIpfsListings] = useState<Listing[]>([]);
-  const [isLoadingIPFS, setIsLoadingIPFS] = useState(true);
+  const [supabaseListings, setSupabaseListings] = useState<Listing[]>([]);
+  const [isLoadingListings, setIsLoadingListings] = useState(true);
 
-  // Load listings from IPFS on component mount
+  // Load listings from Supabase on component mount
   useEffect(() => {
-    loadIPFSListings();
+    loadSupabaseListings();
   }, []);
 
-  const loadIPFSListings = async () => {
-    setIsLoadingIPFS(true);
+  const loadSupabaseListings = async () => {
+    setIsLoadingListings(true);
     try {
-      const ipfsResults = await ipfsService.searchListings();
+      console.log('🔍 Loading listings from Supabase...');
+      const response = await fetch('/api/listings');
+      const result = await response.json();
       
-      // Convert IPFS listings to UI listing format
-      const convertedListings: Listing[] = ipfsResults.map((ipfsListing: IPFSListing) => ({
-        id: ipfsListing.id,
-        title: ipfsListing.title,
-        description: ipfsListing.description,
-        price: ipfsListing.price,
-        currency: ipfsListing.currency,
-        image: ipfsListing.images[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop',
-        seller: ipfsListing.seller,
-        sellerName: ipfsListing.sellerName,
-        sellerRating: 4.5, // Default rating
-        category: ipfsListing.category,
-        condition: ipfsListing.condition,
-        location: ipfsListing.location,
-        createdAt: ipfsListing.createdAt,
-        status: 'active' as const
-      }));
-      
-      setIpfsListings(convertedListings);
-      console.log(`Loaded ${convertedListings.length} listings from IPFS`);
+      if (result.success && result.data) {
+        // Convert Supabase listings to UI listing format
+        const convertedListings: Listing[] = result.data.map((listing: any) => ({
+          id: listing.id.toString(),
+          title: listing.title,
+          description: listing.description || 'No description provided',
+          price: listing.price,
+          currency: 'INR',
+          seller: listing.nullifier.substring(0, 10) + '...',
+          sellerName: `User ${listing.nullifier.substring(0, 6)}`,
+          sellerRating: 4.5, // Default rating
+          category: 'API Services',
+          condition: 'Digital',
+          location: 'India',
+          createdAt: listing.created_at,
+          status: 'active' as const
+        }));
+        
+        setSupabaseListings(convertedListings);
+        console.log(`✅ Loaded ${convertedListings.length} listings from Supabase`);
+      } else {
+        console.warn('⚠️ No listings found or API error:', result.error);
+        setSupabaseListings([]);
+      }
     } catch (error) {
-      console.error('Error loading IPFS listings:', error);
+      console.error('❌ Error loading Supabase listings:', error);
+      setSupabaseListings([]);
     } finally {
-      setIsLoadingIPFS(false);
+      setIsLoadingListings(false);
     }
   };
 
-  // Combine mock listings with IPFS listings
-  const allListings = [...mockListings, ...ipfsListings];
+  // Use only Supabase listings (real data)
+  const allListings = supabaseListings;
 
   // Filter listings based on search and filters
   const filteredListings = allListings.filter(listing => {
@@ -219,50 +125,53 @@ export default function ListingsPage() {
 
   return (
     <PageLayout>
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Browse Marketplace
-            </h1>
-            <p className="text-gray-600">
-              Discover amazing items from trusted sellers across India
-            </p>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header Section */}
+        <div className="text-center py-12 border-b border-gray-200">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            🏰 GhostPalace API Marketplace
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Discover verified API services from Aadhaar-authenticated providers
+          </p>
           
-          {/* Stats Cards */}
-          <div className="flex space-x-4 mt-4 sm:mt-0">
-            <Card padding="sm" className="text-center">
+          {/* Quick Stats */}
+          <div className="flex justify-center items-center space-x-8 mt-8">
+            <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{allListings.length}</div>
-              <div className="text-xs text-gray-500">Total Items</div>
-            </Card>
-            <Card padding="sm" className="text-center">
-              <div className="text-2xl font-bold text-green-600">{allListings.filter(l => l.status === 'active').length}</div>
-              <div className="text-xs text-gray-500">Active</div>
-            </Card>
-            <Card padding="sm" className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{ipfsListings.length}</div>
-              <div className="text-xs text-gray-500">From IPFS</div>
-            </Card>
+              <div className="text-sm text-gray-500">Total APIs</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{filteredListings.length}</div>
+              <div className="text-sm text-gray-500">Available</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{supabaseListings.length}</div>
+              <div className="text-sm text-gray-500">Verified</div>
+            </div>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <SearchBar
-          onSearch={handleSearch}
-          onSort={handleSort}
-        />
+        {/* Search Section */}
+        <div className="py-8">
+          <div className="max-w-2xl mx-auto">
+            <SearchBar
+              onSearch={handleSearch}
+              onSort={handleSort}
+            />
+          </div>
+        </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center justify-between mt-4">
-          <div className="flex items-center space-x-2">
+        {/* Results Header */}
+        <div className="flex items-center justify-between py-4 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-lg font-semibold text-gray-900">API Services</h2>
             <Badge variant="secondary" size="sm">
-              {filteredListings.length} items found
+              {filteredListings.length} found
             </Badge>
             {(filters.categories.length > 0 || filters.conditions.length > 0 || filters.location) && (
               <Badge variant="info" size="sm">
-                Filters applied
+                Filtered
               </Badge>
             )}
           </div>
@@ -274,37 +183,28 @@ export default function ListingsPage() {
               size="sm"
               onClick={() => setViewMode('grid')}
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
+              Grid
             </Button>
             <Button
               variant={viewMode === 'list' ? 'primary' : 'outline'}
               size="sm"
               onClick={() => setViewMode('list')}
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
+              List
             </Button>
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar */}
-        <div className="lg:w-1/4">
-          <FilterSidebar
-            onFilterChange={handleFilterChange}
-            onClearFilters={handleClearFilters}
-          />
-        </div>
-
-        {/* Listings Grid/List */}
-        <div className="lg:w-3/4">
-          {sortedListings.length > 0 ? (
+        {/* Main Content */}
+        <div className="py-8">
+          {isLoadingListings ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-500">Loading API services...</p>
+            </div>
+          ) : sortedListings.length > 0 ? (
             <div className={viewMode === 'grid' 
-              ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" 
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
               : "space-y-4"
             }>
               {sortedListings.map((listing) => (
@@ -316,19 +216,34 @@ export default function ListingsPage() {
               ))}
             </div>
           ) : (
-            <Card className="text-center py-12">
-              <CardContent>
-                <div className="text-6xl mb-4">🔍</div>
-                <CardTitle className="mb-2">No items found</CardTitle>
-                <p className="text-gray-600 mb-4">
-                  Try adjusting your search or filters to find what you're looking for.
-                </p>
-                <Button variant="outline" onClick={handleClearFilters}>
-                  Clear All Filters
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="text-center py-16">
+              <div className="text-gray-300 text-8xl mb-6">🔍</div>
+              <h3 className="text-xl font-medium text-gray-900 mb-2">No API services found</h3>
+              <p className="text-gray-500 mb-6">
+                {searchQuery || filters.categories.length > 0 || filters.conditions.length > 0 || filters.location
+                  ? "Try adjusting your search criteria or clear filters"
+                  : "No API services have been listed yet. Be the first to create one!"}
+              </p>
+              <Button variant="primary" onClick={() => window.location.href = '/dashboard'}>
+                Create First API Listing
+              </Button>
+            </div>
           )}
+        </div>
+
+        {/* Filters Sidebar - Mobile Friendly */}
+        <div className="lg:hidden mt-8">
+          <details className="bg-gray-50 rounded-lg p-4">
+            <summary className="font-medium text-gray-900 cursor-pointer">
+              Filters & Categories
+            </summary>
+            <div className="mt-4">
+              <FilterSidebar
+                onFilterChange={handleFilterChange}
+                onClearFilters={handleClearFilters}
+              />
+            </div>
+          </details>
         </div>
       </div>
     </PageLayout>

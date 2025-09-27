@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import ListingCard from "../../components/ListingCard";
-import CreateListingModal from "../../components/CreateListingModal";
+import CreateListingModal from "../../components/business/CreateListingModal";
 import StatusBadge from "../../components/StatusBadge";
 import OnboardingStatus from "../../components/OnboardingStatus";
 import SimplePaymentDashboard from "../../components/SimplePaymentDashboard";
+import NullifierDebug from "../../components/debug/NullifierDebug";
 
 // Mock data for user's listings and purchases
 const mockUserListings = [
@@ -66,8 +67,10 @@ export default function DashboardPage() {
     joinedDate: "2023-12-01"
   };
 
-  const handleCreateListing = (newListing: any) => {
-    setUserListings([...userListings, newListing]);
+  const handleCreateListing = () => {
+    // Modal handles API call internally, just close modal and optionally refresh listings
+    setIsCreateModalOpen(false);
+    // TODO: Refresh listings from API here if needed
   };
 
   const handleWithdraw = () => {
@@ -112,6 +115,8 @@ export default function DashboardPage() {
 
         {/* Onboarding Status */}
         <OnboardingStatus className="mb-6" />
+        {/* Debug Component - Remove after testing */}
+        <NullifierDebug />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
