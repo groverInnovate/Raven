@@ -46,10 +46,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             className={cn(
               'ghost-input w-full px-3 py-2 text-sm',
-              leftIcon && 'pl-10',
-              rightIcon && 'pr-10',
-              error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
-              variant === 'filled' && 'bg-gray-50',
+              leftIcon ? 'pl-10' : '',
+              rightIcon ? 'pr-10' : '',
+              error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : '',
+              variant === 'filled' ? 'bg-gray-50' : '',
               className
             )}
             ref={ref}

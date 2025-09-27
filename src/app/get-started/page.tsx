@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { getUniversalLink } from "@selfxyz/core";
@@ -6,9 +6,9 @@ import {
   SelfQRcodeWrapper,
   SelfAppBuilder,
   type SelfApp,
+  countries,
 } from "@selfxyz/qrcode";
 import { ethers, getAddress } from "ethers";
-  
 
 export default function Home() {
 
@@ -19,7 +19,7 @@ export default function Home() {
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [walletError, setWalletError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string>(ethers.ZeroAddress);
-  // No status data on this page; it's handled on /status
+  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'scanning' | 'processing' | 'success' | 'error'>('idle');
   const [isMobile, setIsMobile] = useState(true);
    
   // Mobile / in-app detection and stable setu
@@ -73,34 +73,54 @@ export default function Home() {
     }
   }
 
-  const endpointAddr = ("0x16ECBA51e18a4a7e61fdC417f0d47AFEeDfbed74").toString();
+  // Use a publicly accessible endpoint (Self SDK doesn't allow localhost)
+  const endpointAddr = process.env.NEXT_PUBLIC_SELF_ENDPOINT || 'https://staging.self.xyz/api/verify';
   const selfApp: SelfApp | null = useMemo(() => {
     try {
       if (!endpointAddr) {
-        console.warn("Missing endpoint address: set NEXT_PUBLIC_SOURCE_CONTRACT in app/.env");
+        console.warn("Missing endpoint address");
         return null;
       }
-      return new SelfAppBuilder({
+      
+      // Don't create QR code if wallet not connected
+      if (!walletAddress || userId === ethers.ZeroAddress) {
+        console.log("Waiting for wallet connection...", {
+          walletAddress,
+          userId,
+          isZeroAddress: userId === ethers.ZeroAddress
+        });
+        return null;
+      }
+      
+      console.log("Creating Self app with:", {
+        endpoint: endpointAddr,
+        userId: userId,
+        walletAddress: walletAddress
+      });
+      
+      const app = new SelfAppBuilder({
         version: 2,
-        appName: process.env.NEXT_PUBLIC_SELF_APP_NAME || "Adhaar Shield",
-        scope: process.env.NEXT_PUBLIC_SELF_SCOPE || "self",
+        appName: "Aadhaar Shield",
+        scope: "aadhaar-shield-marketplace",
         endpoint: endpointAddr,
         logoBase64: "https://i.postimg.cc/mrmVf9hm/self.png",
         userId: userId,
-        endpointType: "celo",
+        endpointType: "staging_celo",
         userIdType: "hex",
-        userDefinedData: "Self verification result bridging to Base Mainnet",
+        userDefinedData: "Aadhaar Shield marketplace verification",
         disclosures: {
           minimumAge: 18,
-          nationality: true,
-          gender: true,
+          excludedCountries: [countries.CUBA, countries.IRAN, countries.NORTH_KOREA, countries.RUSSIA],
         }
       }).build();
+      
+      console.log("Self app created successfully:", app);
+      return app;
     } catch (e) {
       console.error("Failed to initialize Self app:", e);
       return null;
     }
-  }, [endpointAddr, userId]);
+  }, [endpointAddr, userId, walletAddress]);
 
   const universalLink = useMemo(() => (selfApp ? getUniversalLink(selfApp) : ""), [selfApp]);
 
@@ -138,15 +158,36 @@ export default function Home() {
   
 
   const handleSuccessfulVerification = (result: any) => {
-  try {
-    if (!result) throw new Error("Result is undefined");
-      displayToast("Verification successful!");
-
-  } catch (err: any) {
-    console.error("Failed to extract zkID or verification:", err);
-    displayToast(err.message || "Verification failed!");
-  }
-};
+    try {
+      console.log("Verification result received:", result);
+      
+      if (!result) {
+        throw new Error("Verification result is undefined");
+      }
+      
+      // Extract the verification data
+      const { identityCommitment, zkProof, verificationData } = result;
+      
+      if (!identityCommitment) {
+        throw new Error("No identityCommitment found in verification result");
+      }
+      
+      console.log("Identity Commitment:", identityCommitment);
+      console.log("ZK Proof:", zkProof);
+      
+      // Store the verification data (you can save this to state or localStorage)
+      localStorage.setItem('aadhaar_identity_commitment', identityCommitment);
+      localStorage.setItem('aadhaar_verification_data', JSON.stringify(verificationData));
+      
+      displayToast("✅ Aadhaar verification successful! Identity committed.");
+      
+      // TODO: Navigate to next step or update UI to show verified status
+      
+    } catch (err: any) {
+      console.error("Failed to process verification result:", err);
+      displayToast(`❌ Verification failed: ${err.message}`);
+    }
+  };
 
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
@@ -156,6 +197,14 @@ export default function Home() {
       {/* Main content */}
       <div className="h-px bg-gray-200 w-full max-w-xl mx-auto mb-4" />
       <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-xl mx-auto mt-2 text-center">
+        
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Verify Your Identity</h1>
+          <p className="text-gray-600 text-sm">
+            Scan your Aadhaar card to create your secure, anonymous identity for Aadhaar Shield marketplace
+          </p>
+        </div>
         {/* Connect wallet */}
         <div className="mb-4">
           <div className="mt-1 text-xs font-mono text-gray-700 break-all">{walletAddress?"Connected":"Not connected"}</div>
@@ -165,22 +214,87 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Instructions */}
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+          <h3 className="text-sm font-semibold text-blue-900 mb-2">How to verify:</h3>
+          <ol className="text-xs text-blue-800 space-y-1 text-left">
+            <li>1. Download the Self app on your mobile device</li>
+            <li>2. Scan the QR code below with the Self app</li>
+            <li>3. Follow the prompts to scan your Aadhaar card</li>
+            <li>4. Complete the verification process</li>
+          </ol>
+        </div>
+
         <div className="flex justify-center mb-4 sm:mb-6">
-          {selfApp ? (
+          {!walletAddress ? (
+            <div className="w-[256px] h-[256px] bg-yellow-50 border-2 border-yellow-200 flex items-center justify-center rounded-lg">
+              <div className="text-center p-4">
+                <p className="text-yellow-700 text-sm font-medium mb-2">Wallet Required</p>
+                <p className="text-yellow-600 text-xs">Please connect your wallet first to generate QR code</p>
+              </div>
+            </div>
+          ) : selfApp ? (
             <SelfQRcodeWrapper
-  selfApp={selfApp}
-  onSuccess={() => handleSuccessfulVerification(selfApp)}
-  onError={() => {
-    displayToast("Error: Failed to verify identity");
-  }}
-/>
+              selfApp={selfApp}
+              onSuccess={() => {
+                console.log("QR Code scanned successfully! User completed verification on mobile.");
+                setVerificationStatus('processing');
+                displayToast("✅ QR Code scanned! Processing verification...");
+                
+                // The Self SDK handles the backend verification automatically
+                // The verification result should be available through the backend
+                setTimeout(() => {
+                  setVerificationStatus('success');
+                  displayToast("✅ Aadhaar verification successful! You can now create listings.");
+                  
+                  // Store verification status
+                  localStorage.setItem('aadhaar_verified', 'true');
+                  localStorage.setItem('verification_timestamp', new Date().toISOString());
+                  
+                  // TODO: Navigate to dashboard or next step
+                  // window.location.href = '/dashboard';
+                }, 2000);
+              }}
+              onError={() => {
+                console.error("Self SDK Error occurred");
+                setVerificationStatus('error');
+                displayToast("❌ Verification error occurred. Please try again.");
+              }}
+            />
           ) : (
             <div className="w-[256px] h-[256px] bg-gray-200 animate-pulse flex items-center justify-center">
               <p className="text-gray-500 text-sm">Loading QR Code...</p>
             </div>
           )}
         </div>
-        {/* Status moved to /status */}
+        
+        {/* Verification Status Indicator */}
+        <div className="mb-4 text-center">
+          {verificationStatus === 'idle' && (
+            <div className="flex items-center justify-center gap-2 text-gray-600">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <span className="text-sm">Ready to scan QR code</span>
+            </div>
+          )}
+          {verificationStatus === 'processing' && (
+            <div className="flex items-center justify-center gap-2 text-blue-600">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span className="text-sm">Processing Aadhaar verification...</span>
+            </div>
+          )}
+          {verificationStatus === 'success' && (
+            <div className="flex items-center justify-center gap-2 text-green-600">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm">✅ Verification successful!</span>
+            </div>
+          )}
+          {verificationStatus === 'error' && (
+            <div className="flex items-center justify-center gap-2 text-red-600">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span className="text-sm">❌ Verification failed</span>
+            </div>
+          )}
+        </div>
 
         {isMobile && (
           <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2 mb-4 sm:mb-6 justify-center items-center">

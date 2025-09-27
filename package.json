@@ -9,15 +9,17 @@
   },
   "dependencies": {
     "@selfxyz/core": "^1.1.0-beta.6",
+    "@selfxyz/qrcode": "^1.0.15",
+    "ethers": "^6.13.4",
     "next": "15.5.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
