@@ -1,4 +1,4 @@
-# 👻 Hyena
+# 👻 Raven
 
 **The first P2P digital marketplace combining ZK-Proofs for Private Identities along with stealth payments for complete privacy and trust.**
 
@@ -129,7 +129,7 @@ Create Escrow → Fund Escrow → Access API → Confirm Receipt → Release to 
 - Developer SDK release
 
 
-## �️F Technical Stack
+## Technical Stack
 
 - **Frontend**: Next.js 15, TypeScript, Tailwind CSS
 - **Blockchain**: Ethereum (Sepolia), Solidity smart contracts
@@ -137,8 +137,4 @@ Create Escrow → Fund Escrow → Access API → Confirm Receipt → Release to 
 - **Payments**: PYUSD stablecoin integration
 - **Storage**: Supabase, 
 
----
 
-**GhostPalace isn't just another marketplace - it's the future of private, verified commerce.**
-
-_Built with ❤️ for the future of decentralized commerce_
