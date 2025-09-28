@@ -153,38 +153,7 @@ export class SupabaseService {
     }
   }
 
-  /**
-   * Create a new listing
-   */
-  static async createListing(listingData: Listing): Promise<{ success: boolean; error?: string; data?: Listing }> {
-    try {
-      console.log('📝 Creating listing in Supabase:', listingData.title);
-      
-      const { data, error } = await supabase
-        .from('listings')
-        .insert({
-          nullifier: listingData.nullifier,
-          title: listingData.title,
-          description: listingData.description,
-          api_key: listingData.api_key,
-          price: listingData.price
-        })
-        .select()
-        .single();
 
-      if (error) {
-        console.error('❌ Supabase listing creation error:', error);
-        return { success: false, error: error.message };
-      }
-
-      console.log('✅ Listing created successfully in Supabase');
-      return { success: true, data };
-      
-    } catch (err: any) {
-      console.error('❌ Supabase service error:', err);
-      return { success: false, error: err.message };
-    }
-  }
 
   /**
    * Get listings by nullifier
@@ -213,28 +182,7 @@ export class SupabaseService {
     }
   }
 
-  /**
-   * Get all listings
-   */
-  static async getAllListings(): Promise<{ listings?: Listing[]; error?: string }> {
-    try {
-      const { data, error } = await supabase
-        .from('listings')
-        .select('*')
-        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('❌ Supabase fetch all listings error:', error);
-        return { error: error.message };
-      }
-
-      return { listings: data };
-      
-    } catch (err: any) {
-      console.error('❌ Supabase service error:', err);
-      return { error: err.message };
-    }
-  }
 
   /**
    * Get latest nullifier by creation date (most recent verification)
@@ -289,6 +237,106 @@ export class SupabaseService {
       return { success: true, data };
     } catch (error: any) {
       console.error('Error getting latest nullifier by address:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Create a new listing
+   */
+  static async createListing(listingData: any): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      console.log('📝 Creating listing in Supabase:', listingData);
+      
+      const { data, error } = await supabase
+        .from('listings')
+        .insert(listingData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating listing:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Error creating listing:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get all listings
+   */
+  static async getAllListings(): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching listings:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data: data || [] };
+    } catch (error: any) {
+      console.error('Error fetching listings:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get listing by ID
+   */
+  static async getListingById(id: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return { success: false, error: 'Listing not found' };
+        }
+        console.error('Error fetching listing:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Error fetching listing:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get listing by deal ID
+   */
+  static async getListingByDealId(dealId: number): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('deal_id', dealId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return { success: false, error: 'Listing not found' };
+        }
+        console.error('Error fetching listing by deal ID:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Error fetching listing by deal ID:', error);
       return { success: false, error: error.message };
     }
   }

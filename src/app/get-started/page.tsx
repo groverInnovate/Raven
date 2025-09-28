@@ -58,7 +58,7 @@ export default function Home() {
   }, [wallet]);
 
   // Use a publicly accessible endpoint (Self SDK doesn't allow localhost)
-  const endpointAddr = 'https://e1a66e841f96.ngrok-free.app/api/verify';
+  const endpointAddr = 'https://f4991ac4a421.ngrok-free.app/api/verify';
   const selfApp: SelfApp | null = useMemo(() => {
     try {
       if (!endpointAddr) {

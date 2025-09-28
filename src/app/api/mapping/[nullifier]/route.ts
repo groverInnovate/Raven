@@ -4,10 +4,10 @@ import { nullifierMappingService } from "../../../../lib/nullifierMapping";
 // Get user data from nullifier mapping
 export async function GET(
   request: Request,
-  { params }: { params: { nullifier: string } }
+  { params }: { params: Promise<{ nullifier: string }> }
 ) {
   try {
-    const { nullifier } = params;
+    const { nullifier } = await params;
     console.log(`🔍 Looking up nullifier in mapping: ${nullifier}`);
     
     const result = await nullifierMappingService.getNullifierData(nullifier);

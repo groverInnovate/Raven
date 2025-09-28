@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { PageLayout, Navigation } from "../../../components";
+import BuyerInterface from "../../../components/BuyerInterface";
 
 // Mock data for listings (same as in listings page)
 const mockListings = [
@@ -68,10 +69,65 @@ export default function ListingDetailPage() {
   const listingId = params.id as string;
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [listing, setListing] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const listing = mockListings.find(l => l.id === listingId);
+  useEffect(() => {
+    loadListing();
+  }, [listingId]);
 
-  if (!listing) {
+  const loadListing = async () => {
+    setIsLoading(true);
+    try {
+      // For demo: Use hardcoded listing data since DB is bypassed
+      if (listingId === "1") {
+        setListing({
+          id: "1",
+          title: "Test API Service",
+          description: "Demo API service created via escrow contract. This API provides weather data and other services.",
+          price: 10,
+          currency: 'PYUSD',
+          seller_address: "0x64b2e5f5e",
+          category: "API Services",
+          created_at: new Date().toISOString(),
+          deal_id: 4, // Use the latest deal ID from your escrow contract
+          status: 'active',
+          api_key: "sk-live1234567890abcdef_demo_api_key_12345" // Store the actual API key
+        });
+      } else {
+        // Try to load from API for other listings
+        const response = await fetch(`/api/listings/${listingId}`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setListing(result.data);
+        } else {
+          setError(result.error || 'Listing not found');
+        }
+      }
+    } catch (err) {
+      console.error('Error loading listing:', err);
+      setError('Failed to load listing');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <PageLayout>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading listing...</p>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (error || !listing) {
     return (
       <PageLayout>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -81,7 +137,7 @@ export default function ListingDetailPage() {
               Listing Not Found
             </h1>
             <p className="text-gray-600 mb-4">
-              The listing you're looking for doesn't exist or has been removed.
+              {error || "The listing you're looking for doesn't exist or has been removed."}
             </p>
             <Link
               href="/listings"
@@ -112,43 +168,15 @@ export default function ListingDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2">
-            {/* Image Gallery */}
+            {/* API Service Display */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-              <div className="mb-4">
-                <div className="relative h-96 w-full rounded-lg overflow-hidden">
-                  <Image
-                    src={listing.images[selectedImageIndex]}
-                    alt={listing.title}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🔑</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">API Service</h2>
+                <p className="text-gray-600">
+                  This is a digital API service. Purchase to get access to the API key.
+                </p>
               </div>
-              
-              {/* Thumbnail Gallery */}
-              {listing.images.length > 1 && (
-                <div className="flex space-x-2 overflow-x-auto">
-                  {listing.images.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
-                        selectedImageIndex === index
-                          ? 'border-indigo-500'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <Image
-                        src={image}
-                        alt={`${listing.title} ${index + 1}`}
-                        width={80}
-                        height={80}
-                        className="object-cover w-full h-full"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Product Info */}
@@ -166,139 +194,69 @@ export default function ListingDetailPage() {
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">Category:</span>
                   <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    {listing.category}
+                    {listing.category || 'API Services'}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">Condition:</span>
+                  <span className="text-sm text-gray-500">Type:</span>
                   <span className="px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                    {listing.condition}
+                    Digital Service
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">Location:</span>
-                  <span className="text-gray-900">📍 {listing.location}</span>
+                  <span className="text-sm text-gray-500">Deal ID:</span>
+                  <span className="text-gray-900 font-mono text-sm">{listing.deal_id}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">Listed:</span>
-                  <span className="text-gray-900">{listing.createdAt}</span>
+                  <span className="text-gray-900">{new Date(listing.created_at).toLocaleDateString()}</span>
                 </div>
+              </div>
+
+              {/* Escrow Protection Info */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-medium text-green-900 mb-2">🔒 Escrow Protected</h4>
+                <ul className="text-sm text-green-800 space-y-1">
+                  <li>• Your payment is held securely until you confirm receipt</li>
+                  <li>• Get immediate access to the API key after payment</li>
+                  <li>• Seller receives payment privately via stealth address</li>
+                  <li>• Full refund protection if service doesn't work</li>
+                </ul>
               </div>
             </div>
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            {/* Price Card */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <div className="text-3xl font-bold text-gray-900 mb-2">
-                {listing.price} {listing.currency}
-              </div>
-              <div className="text-sm text-gray-500 mb-6">
-                ≈ ${(listing.price * 2500).toLocaleString()} USD
-              </div>
-
-              {/* Seller Info */}
-              <div className="border-t border-gray-200 pt-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Seller Information
-                </h3>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="font-medium text-gray-900">
-                        {listing.sellerName}
-                      </span>
-                      <div className="flex items-center">
-                        <span className="text-yellow-400">⭐</span>
-                        <span className="text-sm text-gray-600 ml-1">
-                          {listing.sellerRating}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {listing.seller}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500 mt-1">
-                      <span>📍</span>
-                      <span className="ml-1">{listing.location}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
+            {/* Buyer Interface */}
+            <BuyerInterface listing={listing} className="mb-6" />
+            
+            {/* Seller Info */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Seller Information
+              </h3>
               <div className="space-y-3">
-                <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg font-medium transition-colors">
-                  💰 Buy Now
-                </button>
-                <button
-                  onClick={() => setShowContactModal(true)}
-                  className="w-full border border-indigo-600 text-indigo-600 hover:bg-indigo-50 py-3 px-6 rounded-lg font-medium transition-colors"
-                >
-                  💬 Contact Seller
-                </button>
-                <button className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 py-3 px-6 rounded-lg font-medium transition-colors">
-                  ❤️ Add to Wishlist
-                </button>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Address:</span>
+                  <span className="font-mono text-xs text-gray-700">
+                    {listing.seller_address?.slice(0, 6)}...{listing.seller_address?.slice(-4)}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Verified:</span>
+                  <span className="text-green-600 font-medium">✅ Aadhaar Verified</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Privacy:</span>
+                  <span className="text-blue-600 font-medium">🔐 Stealth Payments</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Specifications */}
-        {listing.specifications && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Specifications
-            </h3>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Object.entries(listing.specifications).map(([key, value]) => (
-                <div key={key} className="flex justify-between py-2 border-b border-gray-200 last:border-b-0">
-                  <dt className="text-sm font-medium text-gray-500">{key}:</dt>
-                  <dd className="text-sm text-gray-900">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        )}
 
-        {/* Contact Modal */}
-        {showContactModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Contact Seller
-                </h3>
-                <button
-                  onClick={() => setShowContactModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-              <p className="text-gray-600 mb-4">
-                Send a message to {listing.sellerName} about this listing.
-              </p>
-              <textarea
-                placeholder="Hi, I'm interested in your listing..."
-                className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mb-4"
-              />
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowContactModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors">
-                  Send Message
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </PageLayout>
   );

@@ -6,7 +6,7 @@ import { SupabaseService } from "../../../lib/supabase";
 // Reuse a single verifier instance
 const selfBackendVerifier = new SelfBackendVerifier(
   "aadhaar", // scope - matches frontend
-  process.env.NGROK_ENDPOINT || "https://e1a66e841f96.ngrok-free.app/api/verify", // endpoint - matches frontend
+  process.env.NGROK_ENDPOINT || "https://f4991ac4a421.ngrok-free.app/api/verify", // endpoint - matches frontend
   false, // mockPassport: true for staging/testnet
   AllIds,
   new DefaultConfigStore({

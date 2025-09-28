@@ -19,7 +19,7 @@ export interface ScannerConfig {
 
 export class StealthPaymentScanner {
   private provider: ethers.Provider;
-  private config: Required<ScannerConfig>;
+  private config: Required<Omit<ScannerConfig, 'provider'>> & { provider?: ethers.Provider };
 
   constructor(config: ScannerConfig = {}) {
     this.config = {
@@ -132,7 +132,7 @@ export class StealthPaymentScanner {
           try {
             const balance = await this.provider.getBalance(address);
             
-            if (balance > 0n) {
+            if (balance > BigInt(0)) {
               // Found funds! Get transaction history
               const txs = await this.getIncomingTransactions(address, fromBlock, toBlock);
               
@@ -279,7 +279,7 @@ export class StealthPaymentScanner {
           const tx = await this.provider.getTransaction(log.transactionHash!);
           const block = await this.provider.getBlock(log.blockNumber);
           
-          if (tx && block && tx.value > 0n) {
+          if (tx && block && tx.value > BigInt(0)) {
             payments.push({
               stealthAddress,
               ephemeralPublicKey: ephemeralPubKey,
@@ -369,10 +369,11 @@ export class StealthPaymentScanner {
           for (const tx of block.transactions) {
             if (typeof tx === 'string') continue;
             
-            if (tx.to?.toLowerCase() === address.toLowerCase() && tx.value > 0n) {
+            const transaction = tx as ethers.TransactionResponse;
+            if (transaction.to?.toLowerCase() === address.toLowerCase() && transaction.value > BigInt(0)) {
               transactions.push({
-                hash: tx.hash,
-                value: tx.value,
+                hash: transaction.hash,
+                value: transaction.value,
                 timestamp: block.timestamp,
                 blockNumber: blockNum
               });

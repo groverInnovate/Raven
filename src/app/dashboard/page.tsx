@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import ListingCard from "../../components/ListingCard";
-import CreateListingModal from "../../components/business/CreateListingModal";
+
 import StatusBadge from "../../components/StatusBadge";
 import OnboardingStatus from "../../components/OnboardingStatus";
 import SimplePaymentDashboard from "../../components/SimplePaymentDashboard";
-import NullifierDebug from "../../components/debug/NullifierDebug";
+import CreateEscrowListing from "../../components/CreateEscrowListing";
 
 // Mock data for user's listings and purchases
 const mockUserListings = [
@@ -50,8 +50,8 @@ const mockUserPurchases = [
 ];
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<'listings' | 'purchases' | 'profile' | 'payments'>('listings');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'listings' | 'purchases' | 'profile' | 'create' | 'payments'>('listings');
+
   const [userListings, setUserListings] = useState(mockUserListings);
   
   // Mock user data
@@ -67,11 +67,7 @@ export default function DashboardPage() {
     joinedDate: "2023-12-01"
   };
 
-  const handleCreateListing = () => {
-    // Modal handles API call internally, just close modal and optionally refresh listings
-    setIsCreateModalOpen(false);
-    // TODO: Refresh listings from API here if needed
-  };
+
 
   const handleWithdraw = () => {
     alert(`Withdrawing ₹${userData.balance} to your bank account...`);
@@ -115,8 +111,6 @@ export default function DashboardPage() {
 
         {/* Onboarding Status */}
         <OnboardingStatus className="mb-6" />
-        {/* Debug Component - Remove after testing */}
-        <NullifierDebug />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -182,6 +176,16 @@ export default function DashboardPage() {
                 Profile
               </button>
               <button
+                onClick={() => setActiveTab('create')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'create'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📦 Create Listing
+              </button>
+              <button
                 onClick={() => setActiveTab('payments')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'payments'
@@ -201,7 +205,7 @@ export default function DashboardPage() {
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold text-gray-900">My Listings</h2>
                   <button
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={() => setActiveTab('create')}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
                   >
                     + Create Listing
@@ -214,7 +218,7 @@ export default function DashboardPage() {
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">No listings yet</h3>
                     <p className="text-gray-600 mb-4">Create your first listing to start selling</p>
                     <button
-                      onClick={() => setIsCreateModalOpen(true)}
+                      onClick={() => setActiveTab('create')}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium transition-colors"
                     >
                       Create Listing
@@ -351,6 +355,20 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* Create Listing Tab */}
+            {activeTab === 'create' && (
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Create API Listing</h2>
+                <CreateEscrowListing 
+                  onListingCreated={(dealId, txHash) => {
+                    console.log('Listing created:', { dealId, txHash });
+                    // Switch to listings tab to show the new listing
+                    setActiveTab('listings');
+                  }}
+                />
+              </div>
+            )}
+
             {/* Payments Tab */}
             {activeTab === 'payments' && (
               <div>
@@ -362,12 +380,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Create Listing Modal */}
-      <CreateListingModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateListing}
-      />
+
     </div>
   );
 }

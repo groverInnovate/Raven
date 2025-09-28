@@ -18,11 +18,11 @@ export async function GET(req: NextRequest) {
     // Get all users with this address (not just latest)
     const result = await SupabaseService.getAllVerifiedUsers();
     
-    console.log(`📊 DEBUG: Total users in database: ${result.data?.length || 0}`);
+    console.log(`📊 DEBUG: Total users in database: ${result.users?.length || 0}`);
     
-    if (result.success && result.data) {
+    if (result.users) {
       // Filter by user address
-      const userRecords = result.data.filter(user => 
+      const userRecords = result.users.filter(user => 
         user.user_address?.toLowerCase() === userAddress.toLowerCase()
       );
       
@@ -30,10 +30,10 @@ export async function GET(req: NextRequest) {
       
       return NextResponse.json({ 
         success: true, 
-        totalUsers: result.data.length,
+        totalUsers: result.users.length,
         userRecords: userRecords,
         searchAddress: userAddress,
-        allAddresses: result.data.map(u => u.user_address)
+        allAddresses: result.users.map(u => u.user_address)
       });
     } else {
       console.log(`❌ DEBUG: Failed to get users from database:`, result.error);

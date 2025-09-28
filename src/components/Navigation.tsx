@@ -12,7 +12,6 @@ const navItems = [
   { href: '/listings', label: 'Marketplace' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/escrow', label: 'Escrow', badge: '2' },
-  { href: '/simple-test', label: 'Simple Test' },
   { href: '/get-started', label: 'Get Started' },
 ];
 

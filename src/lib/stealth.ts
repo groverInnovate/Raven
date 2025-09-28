@@ -314,7 +314,7 @@ export async function scanForStealthPayments(
         
         console.log(`Address ${stealthAddress}: ${ethers.formatEther(balance)} ETH`);
         
-        if (balance > 0n) {
+        if (balance > BigInt(0)) {
           // Found funds! Create payment record
           payments.push({
             stealthAddress,
@@ -468,7 +468,7 @@ async function sweepETH(
     const balance = await stealthWallet.provider!.getBalance(stealthWallet.address);
     console.log('Stealth address ETH balance:', ethers.formatEther(balance));
     
-    if (balance === 0n) {
+    if (balance === BigInt(0)) {
       throw new Error('No ETH balance found in stealth address');
     }
     
@@ -489,7 +489,7 @@ async function sweepETH(
     // Calculate amount to send (balance minus gas)
     const amountToSend = balance - gasCost;
     
-    if (amountToSend <= 0n) {
+    if (amountToSend <= BigInt(0)) {
       throw new Error('Insufficient balance to cover gas fees');
     }
     
@@ -566,13 +566,13 @@ async function sweepERC20Token(
       currency: payment.currency
     });
     
-    if (balance === 0n) {
+    if (balance === BigInt(0)) {
       throw new Error(`No ${payment.currency} balance found in stealth address`);
     }
     
     // Check if we have ETH for gas
     const ethBalance = await stealthWallet.provider!.getBalance(stealthWallet.address);
-    if (ethBalance === 0n) {
+    if (ethBalance === BigInt(0)) {
       throw new Error('No ETH for gas fees in stealth address');
     }
     

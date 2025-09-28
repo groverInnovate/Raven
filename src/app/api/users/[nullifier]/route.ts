@@ -31,10 +31,10 @@ function getPinataAuthHeaders(): Record<string, string> {
 // Store user verification data
 export async function POST(
   request: Request,
-  { params }: { params: { nullifier: string } }
+  { params }: { params: Promise<{ nullifier: string }> }
 ) {
   try {
-    const { nullifier } = params;
+    const { nullifier } = await params;
     const body = await request.json();
     
     console.log(`📝 Storing verification data for nullifier: ${nullifier}`);
@@ -106,10 +106,10 @@ export async function POST(
 // Retrieve user verification data
 export async function GET(
   request: Request,
-  { params }: { params: { nullifier: string } }
+  { params }: { params: Promise<{ nullifier: string }> }
 ) {
   try {
-    const { nullifier } = params;
+    const { nullifier } = await params;
     console.log(`📥 Retrieving verification data for nullifier: ${nullifier}`);
     
     // Check if we have Pinata credentials

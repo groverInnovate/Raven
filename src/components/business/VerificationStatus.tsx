@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { useNullifier } from '../../contexts/NullifierContext';
-import { Button } from '../ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
-import { Badge } from '../ui/Badge';
+import Button from '../ui/Button';
+import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card';
+import Badge from '../ui/Badge';
 
 export function VerificationStatus() {
   const { 

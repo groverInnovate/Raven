@@ -47,12 +47,13 @@ export default function ListingsPage() {
           title: listing.title,
           description: listing.description || 'No description provided',
           price: listing.price,
-          currency: 'INR',
-          seller: listing.nullifier.substring(0, 10) + '...',
-          sellerName: `User ${listing.nullifier.substring(0, 6)}`,
+          currency: 'PYUSD',
+          image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=300&fit=crop', // Default API image
+          seller: listing.seller_address?.substring(0, 10) + '...' || 'Unknown',
+          sellerName: `Seller ${listing.seller_address?.substring(0, 6) || 'Unknown'}`,
           sellerRating: 4.5, // Default rating
-          category: 'API Services',
-          condition: 'Digital',
+          category: listing.category || 'API Services',
+          condition: 'Digital Service',
           location: 'India',
           createdAt: listing.created_at,
           status: 'active' as const
@@ -72,8 +73,28 @@ export default function ListingsPage() {
     }
   };
 
-  // Use only Supabase listings (real data)
-  const allListings = supabaseListings;
+  // For demo: Add the created listing manually since DB storage is bypassed
+  const demoListing = {
+    id: "1",
+    title: "Test API Service",
+    description: "Demo API service created via escrow contract",
+    price: 10,
+    currency: 'PYUSD',
+    image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=300&fit=crop',
+    seller: "0x64b2e...5f5e",
+    sellerName: "Demo Seller",
+    sellerRating: 4.8,
+    category: "API Services",
+    condition: "Digital Service",
+    location: "India",
+    createdAt: new Date().toISOString(),
+    status: 'active' as const,
+    deal_id: 4, // Use the latest deal ID from your escrow contract
+    api_key: "sk-live1234567890abcdef_demo_api_key_12345" // Store the actual API key
+  };
+
+  // Use demo listing + any Supabase listings
+  const allListings = [demoListing, ...supabaseListings];
 
   // Filter listings based on search and filters
   const filteredListings = allListings.filter(listing => {

@@ -30,7 +30,7 @@ export default function ListingCard({ listing, userType = 'buyer' }: ListingCard
       <div className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden hover:shadow-md hover:border-blue-300 transition-all cursor-pointer">
         <div className="relative h-48 w-full">
           <Image
-            src={listing.image}
+            src={listing.image || 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=300&fit=crop'}
             alt={listing.title}
             fill
             className="object-cover"
@@ -54,7 +54,7 @@ export default function ListingCard({ listing, userType = 'buyer' }: ListingCard
             </h3>
             <div className="text-right ml-2">
               <div className="text-lg font-bold text-blue-600">
-                ₹{listing.price}
+                {listing.currency === 'PYUSD' ? `${listing.price} PYUSD` : `₹${listing.price}`}
               </div>
             </div>
           </div>
