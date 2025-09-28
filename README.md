@@ -34,11 +34,11 @@ Hyena introduces **Verified Anonymous E-Commerce** - a revolutionary approach th
 - PYUSD-based payments for stability
 - Buyer & Seller protection with refund mechanisms
 
-### PYUSD For Payments
+###    PYUSD For Payments
 
--**Easy onboarding for PayPal users → mass crypto adoption**
--**Smooth Web2 → Web3 transition**
--**Market expansion for PayPal**
+- **Easy onboarding for PayPal users → mass crypto adoption**
+- **Smooth Web2 → Web3 transition**
+- **Market expansion for PayPal**
 
 ## 🏗️ Architecture
 
